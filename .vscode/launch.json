@@ -1,0 +1,12 @@
+{
+  "configurations": [
+    {
+      "name": "Search Money Making Methods",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "console": "integratedTerminal",
+      "args": ["iKewlstore"]
+    }
+  ]
+}
