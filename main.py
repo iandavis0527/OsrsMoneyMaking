@@ -5,7 +5,6 @@ import urllib.parse
 import requests
 from bs4 import BeautifulSoup
 
-# Set a custom User-Agent as required by OSRS Wiki API policy
 HEADERS = {"User-Agent": "OSRS_MoneyMaker_BatchFilter - Contact: user@example.com"}
 
 SKILL_NAMES = [
@@ -59,19 +58,19 @@ def fetch_player_stats(username: str) -> dict:
     return stats
 
 
-def fetch_wiki_money_methods() -> list:
-    """Fetch all money making methods from the main guide page."""
+def fetch_wiki_money_methods(page_name: str) -> list:
+    """Fetch money making methods from a given wiki page (P2P or F2P)."""
     wiki_api_url = "https://oldschool.runescape.wiki/api.php"
     params = {
         "action": "parse",
-        "page": "Money_making_guide",
+        "page": page_name,
         "prop": "text",
         "format": "json",
     }
 
     response = requests.get(wiki_api_url, params=params, headers=HEADERS)
     if response.status_code != 200:
-        print("Failed to reach OSRS Wiki API.")
+        print(f"Failed to reach OSRS Wiki API for page: {page_name}")
         return []
 
     html_content = response.json().get("parse", {}).get("text", {}).get("*", "")
@@ -91,7 +90,6 @@ def fetch_wiki_money_methods() -> list:
             link = cols[0].find("a")
             page_title = ""
             if link and link.has_attr("href"):
-                # Extract clean page title from href (e.g. /w/Money_making_guide/Tanning_cowhides -> Money_making_guide/Tanning_cowhides)
                 page_title = urllib.parse.unquote(link["href"].replace("/w/", ""))
 
             if page_title:
@@ -104,9 +102,10 @@ def fetch_wiki_money_methods() -> list:
 
 def fetch_batch_requirements(page_titles: list) -> dict:
     """Fetch raw wikitext for multiple pages in a single API call (max 50 titles per batch)."""
-    wiki_api_url = "https://oldschool.runescape.wiki/api.php"
+    if not page_titles:
+        return {}
 
-    # Pipe-separated titles for batch API request
+    wiki_api_url = "https://oldschool.runescape.wiki/api.php"
     titles_str = "|".join(page_titles)
 
     params = {
@@ -136,7 +135,6 @@ def fetch_batch_requirements(page_titles: list) -> dict:
 
         wikitext = revisions[0].get("slots", {}).get("main", {}).get("*", "")
 
-        # Parse required skill levels using regex across common wiki formats
         required_skills = {}
         for skill in SKILL_NAMES:
             pattern = re.compile(rf"{skill}\s*[:|=]?\s*(\d{{1,2}})", re.IGNORECASE)
@@ -156,21 +154,20 @@ def chunk_list(lst: list, n: int):
 
 
 def filter_all_methods(methods: list, player_stats: dict) -> list:
-    """Batch process all methods and filter based on skill stats."""
-    all_titles = [m["page_title"] for m in methods]
+    """Batch process methods and filter based on skill stats."""
+    # Deduplicate page titles before fetching
+    all_titles = list({m["page_title"] for m in methods})
 
-    # MediaWiki API allows max 50 titles per request
     BATCH_SIZE = 50
     all_requirements = {}
 
-    print(f"   -> Fetching wikitext requirements in batches of {BATCH_SIZE}...")
     for chunk in chunk_list(all_titles, BATCH_SIZE):
         batch_reqs = fetch_batch_requirements(chunk)
         all_requirements.update(batch_reqs)
 
     results = []
     for method in methods:
-        title = method["page_title"].replace("_", " ")  # MediaWiki normalizes spaces
+        title = method["page_title"].replace("_", " ")
         req_skills = all_requirements.get(title, {})
 
         can_do = True
@@ -184,14 +181,22 @@ def filter_all_methods(methods: list, player_stats: dict) -> list:
                     f"{skill.capitalize()} {player_level}/{req_level}"
                 )
 
-        if can_do:
-            method["status"] = "Unlocked"
-        else:
-            method["status"] = f"Locked: Missing {', '.join(missing_reasons)}"
-
+        method["status"] = (
+            "Unlocked" if can_do else f"Locked: Missing {', '.join(missing_reasons)}"
+        )
         results.append(method)
 
     return results
+
+
+def print_table(title: str, methods: list, limit: int | None = None):
+    """Utility function to display methods formatted as a clean table."""
+    display_methods = methods[:limit] if limit else methods
+    print(f"\n=== {title} ({len(methods)} total) ===")
+    print(f"{'METHOD':<45} | {'PROFIT':<15} | {'STATUS'}")
+    print("-" * 78)
+    for m in display_methods:
+        print(f"{m['name'][:44]:<45} | {m['profit']:<15} | {m['status']}")
 
 
 def main(username: str):
@@ -202,43 +207,35 @@ def main(username: str):
 
     print(f"   -> Total Level: {stats.get('overall', 'N/A')}")
 
-    print("\n2. Fetching list of all money making methods...")
-    methods = fetch_wiki_money_methods()
-    print(f"   -> Found {len(methods)} total methods.")
-
+    print("\n2. Fetching P2P & F2P Money Making Guides...")
+    p2p_methods = fetch_wiki_money_methods("Money_making_guide")
+    f2p_methods = fetch_wiki_money_methods("Money_making_guide/Free-to-play")
     print(
-        "\n3. Batch querying MediaWiki API and evaluating requirements for ALL methods..."
+        f"   -> Found {len(p2p_methods)} P2P methods and {len(f2p_methods)} F2P methods."
     )
-    results = filter_all_methods(methods, stats)
 
-    unlocked = [m for m in results if m["status"] == "Unlocked"]
-    locked = [m for m in results if m["status"] != "Unlocked"]
+    print("\n3. Evaluating skill requirements...")
+    p2p_results = filter_all_methods(p2p_methods, stats)
+    f2p_results = filter_all_methods(f2p_methods, stats)
 
-    print("\n" + "=" * 75)
-    print(
-        f"SUMMARY: {len(unlocked)} Unlocked | {len(locked)} Locked out of {len(results)} total methods"
-    )
-    print("=" * 75)
+    # Free-to-play Table Output
+    f2p_unlocked = [m for m in f2p_results if m["status"] == "Unlocked"]
+    # f2p_locked = [m for m in f2p_results if m["status"] != "Unlocked"]
+    print_table("FREE-TO-PLAY (F2P) UNLOCKED METHODS", f2p_unlocked)
+    # if f2p_locked:
+    #     print_table("FREE-TO-PLAY (F2P) LOCKED METHODS", f2p_locked)
 
-    print(f"\n--- TOP UNLOCKED METHODS ({len(unlocked)}) ---")
-    print(f"{'METHOD':<45} | {'PROFIT':<15} | {'STATUS'}")
-    print("-" * 75)
-    for m in unlocked[:20]:  # Display top 20 unlocked
-        print(f"{m['name'][:44]:<45} | {m['profit']:<15} | {m['status']}")
-
-    if locked:
-        print(f"\n--- SAMPLE LOCKED METHODS ({len(locked)}) ---")
-        print(f"{'METHOD':<35} | {'PROFIT':<15} | {'REASON'}")
-        print("-" * 75)
-        for m in locked[:10]:  # Display sample of 10 locked
-            print(f"{m['name'][:34]:<35} | {m['profit']:<15} | {m['status']}")
+    # Members Table Output
+    p2p_unlocked = [m for m in p2p_results if m["status"] == "Unlocked"]
+    # p2p_locked = [m for m in p2p_results if m["status"] != "Unlocked"]
+    print_table("PAY-TO-PLAY (P2P) UNLOCKED METHODS (TOP 20)", p2p_unlocked, limit=20)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        "Script to find available money making methods for OSRS"
+        description="Script to find available OSRS money making methods based on stats"
     )
-    parser.add_argument("username", help="Your osrs username")
+    parser.add_argument("username", help="Your OSRS username")
     args = parser.parse_args()
 
     main(args.username)
