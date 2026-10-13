@@ -72,7 +72,8 @@
               >
             </h1>
             <p class="text-xs text-slate-400">
-              Real-time Grand Exchange, High Alch & Liquidity Volume analytics
+              Real-time GE, Fractional Ingredients, High Alch & Liquidity Volume
+              analytics
             </p>
           </div>
         </div>
@@ -131,9 +132,17 @@
               class="bg-slate-900 text-emerald-300 px-1.5 py-0.5 rounded border border-slate-700"
               >(*)</code
             >
-            as a wildcard for batch processing (e.g.,
-            <span class="text-slate-300">grimy (*)</span>). Set valuation source
-            per recipe card.
+            as a wildcard (e.g., <span class="text-slate-300">grimy (*)</span>).
+            Quantities accept fractions like
+            <code
+              class="bg-slate-900 text-emerald-300 px-1 py-0.5 rounded border border-slate-700"
+              >1/27</code
+            >
+            or decimals like
+            <code
+              class="bg-slate-900 text-emerald-300 px-1 py-0.5 rounded border border-slate-700"
+              >0.037</code
+            >.
           </p>
 
           <div
@@ -185,7 +194,7 @@
             class="bg-slate-800 p-4 rounded-xl border border-slate-700 material-card"
           >
             <span class="text-xs text-slate-400 block mb-1"
-              >Max Potential Profit</span
+              >Max Profit / Unit</span
             >
             <span id="stat-max-profit" class="text-xl font-bold text-cyan-400"
               >0 gp</span
@@ -255,21 +264,20 @@
                     ></span>
                   </th>
                   <th
-                    onclick="sortTable('totalOutputRevenue')"
+                    onclick="sortTable('profitPerUnit')"
                     class="p-3 cursor-pointer hover:text-white transition"
                   >
-                    Output Value
-                    <span
-                      id="sort-totalOutputRevenue"
-                      class="text-emerald-400"
-                    ></span>
+                    Profit / Unit
+                    <span id="sort-profitPerUnit" class="text-emerald-400"
+                      >▲</span
+                    >
                   </th>
                   <th
-                    onclick="sortTable('profit')"
+                    onclick="sortTable('totalProfit')"
                     class="p-3 cursor-pointer hover:text-white transition"
                   >
-                    Net Profit
-                    <span id="sort-profit" class="text-emerald-400">▲</span>
+                    Batch Profit
+                    <span id="sort-totalProfit" class="text-emerald-400"></span>
                   </th>
                   <th
                     onclick="sortTable('minVolume')"
@@ -315,7 +323,7 @@
         "https://prices.runescape.wiki/api/v1/osrs/latest";
       const VOLUME_24H_URL = "https://prices.runescape.wiki/api/v1/osrs/24h";
       const HEADERS = {
-        "User-Agent": "OSRSProfitWebApp/2.3 (contact@example.com)",
+        "User-Agent": "OSRSProfitWebApp/2.5 (contact@example.com)",
       };
 
       let itemMapping = [];
@@ -326,12 +334,31 @@
       let recipesData = [];
       let lastResults = [];
 
-      let currentSortColumn = "profit";
+      let currentSortColumn = "profitPerUnit";
       let currentSortAscending = false;
 
       window.addEventListener("DOMContentLoaded", () => {
         initializeAppData();
       });
+
+      function parseQuantityExpression(inputStr) {
+        if (typeof inputStr === "number") return inputStr;
+        if (!inputStr) return 1;
+
+        const str = inputStr.toString().trim();
+        if (str.includes("/")) {
+          const parts = str.split("/");
+          if (parts.length === 2) {
+            const num = parseFloat(parts[0]);
+            const den = parseFloat(parts[1]);
+            if (!isNaN(num) && !isNaN(den) && den !== 0) {
+              return num / den;
+            }
+          }
+        }
+        const parsed = parseFloat(str);
+        return isNaN(parsed) ? 1 : parsed;
+      }
 
       async function initializeAppData() {
         const statusBadge = document.getElementById("api-status-badge");
@@ -395,19 +422,19 @@
         recipesData = [
           {
             inputs: [
-              { item: "grimy (*)", quantity: 1 },
-              { item: "nature rune", quantity: 1 },
+              { item: "grimy (*)", quantity: "1" },
+              { item: "nature rune", quantity: "1/27" },
             ],
-            output: { item: "(*)", quantity: 1 },
+            output: { item: "(*)", quantity: "1" },
             inputMode: "high",
             outputMode: "high",
           },
           {
             inputs: [
-              { item: "uncut dragonstone", quantity: 1 },
-              { item: "cosmic rune", quantity: 1 },
+              { item: "uncut dragonstone", quantity: "1" },
+              { item: "cosmic rune", quantity: "1/12" },
             ],
-            output: { item: "dragonstone bolt tips", quantity: 12 },
+            output: { item: "dragonstone bolt tips", quantity: "1" },
             inputMode: "high",
             outputMode: "high",
           },
@@ -430,7 +457,7 @@
               (inp, iIdx) => `
                     <div class="flex items-center gap-2">
                         <input type="text" value="${inp.item}" placeholder="Input Item Name" onchange="updateRecipeInput(${rIdx}, ${iIdx}, 'item', this.value)" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
-                        <input type="number" value="${inp.quantity}" min="1" placeholder="Qty" onchange="updateRecipeInput(${rIdx}, ${iIdx}, 'quantity', this.value)" class="w-20 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+                        <input type="text" value="${inp.quantity}" placeholder="Qty (e.g. 1/27)" onchange="updateRecipeInput(${rIdx}, ${iIdx}, 'quantity', this.value)" class="w-24 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 text-center font-mono">
                         <button onclick="removeInput(${rIdx}, ${iIdx})" class="text-slate-500 hover:text-rose-400 p-1"><span class="material-icons-round text-base">remove_circle_outline</span></button>
                     </div>
                 `,
@@ -469,7 +496,7 @@
                         <span class="text-[11px] uppercase tracking-wider text-slate-400 font-medium">Output Product</span>
                         <div class="flex items-center gap-2">
                             <input type="text" value="${recipe.output.item}" placeholder="Output Item Name" onchange="updateRecipeOutput(${rIdx}, 'item', this.value)" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
-                            <input type="number" value="${recipe.output.quantity}" min="1" placeholder="Qty" onchange="updateRecipeOutput(${rIdx}, 'quantity', this.value)" class="w-20 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+                            <input type="text" value="${recipe.output.quantity}" placeholder="Qty" onchange="updateRecipeOutput(${rIdx}, 'quantity', this.value)" class="w-24 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 text-center font-mono">
                         </div>
                     </div>
                 `;
@@ -479,8 +506,8 @@
 
       function addNewRecipeCard() {
         recipesData.push({
-          inputs: [{ item: "", quantity: 1 }],
-          output: { item: "", quantity: 1 },
+          inputs: [{ item: "", quantity: "1" }],
+          output: { item: "", quantity: "1" },
           inputMode: "high",
           outputMode: "high",
         });
@@ -494,7 +521,7 @@
       }
 
       function addInput(rIdx) {
-        recipesData[rIdx].inputs.push({ item: "", quantity: 1 });
+        recipesData[rIdx].inputs.push({ item: "", quantity: "1" });
         renderRecipes();
       }
 
@@ -506,13 +533,11 @@
       }
 
       function updateRecipeInput(rIdx, iIdx, field, val) {
-        recipesData[rIdx].inputs[iIdx][field] =
-          field === "quantity" ? parseInt(val) || 1 : val;
+        recipesData[rIdx].inputs[iIdx][field] = val;
       }
 
       function updateRecipeOutput(rIdx, field, val) {
-        recipesData[rIdx].output[field] =
-          field === "quantity" ? parseInt(val) || 1 : val;
+        recipesData[rIdx].output[field] = val;
       }
 
       function updateRecipeMode(rIdx, modeField, val) {
@@ -622,13 +647,18 @@
           const outMode = recipe.outputMode || "high";
 
           recipe.inputs.forEach((inp) => {
+            const numQty = parseQuantityExpression(inp.quantity);
             const { price, volume, id } = getItemData(inp.item, inMode);
-            const totalCost = price * inp.quantity;
+            const totalCost = price * numQty;
             totalInputCost += totalCost;
-            if (volume < minVolume) minVolume = volume;
+
+            const scaledVolume = numQty > 0 ? volume / numQty : volume;
+            if (scaledVolume < minVolume) minVolume = scaledVolume;
+
             inputBreakdown.push({
               name: inp.item,
-              qty: inp.quantity,
+              qty: numQty,
+              rawQty: inp.quantity,
               price,
               volume,
               totalCost,
@@ -636,30 +666,40 @@
           });
 
           const outName = recipe.output.item;
-          const outputQty = recipe.output.quantity || 1;
+          const outputQty = parseQuantityExpression(recipe.output.quantity);
           const {
             price: outPrice,
             volume: outVolume,
             id: outId,
           } = getItemData(outName, outMode);
 
+          let effectiveOutPrice = outPrice;
+          if (outMode !== "alch" && outPrice > 0) {
+            const taxPerItem = Math.min(Math.floor(outPrice * 0.01), 5000000);
+            effectiveOutPrice = outPrice - taxPerItem;
+          }
+
           if (outVolume < minVolume) minVolume = outVolume;
           if (minVolume === Infinity) minVolume = 0;
 
-          const totalOutputRevenue = outPrice * outputQty;
-          const profit = totalOutputRevenue - totalInputCost;
+          const totalOutputRevenue = effectiveOutPrice * outputQty;
+          const totalProfit = totalOutputRevenue - totalInputCost;
+
+          const profitPerUnit =
+            outputQty > 0 ? totalProfit / outputQty : totalProfit;
           const marginPct =
-            totalInputCost > 0 ? (profit / totalInputCost) * 100 : 0;
+            totalInputCost > 0 ? (totalProfit / totalInputCost) * 100 : 0;
 
           lastResults.push({
             outputName: outName,
             outputQty,
-            outPrice,
+            outPrice: effectiveOutPrice,
             totalInputCost,
             totalOutputRevenue,
-            profit,
+            totalProfit,
+            profitPerUnit,
             marginPct,
-            minVolume,
+            minVolume: Math.floor(minVolume),
             inputBreakdown,
             valid: outId !== null,
           });
@@ -669,7 +709,7 @@
           const matchesSearch = r.outputName
             .toLowerCase()
             .includes(searchQuery);
-          const meetsProfit = hideUnprofitable ? r.profit > 0 : true;
+          const meetsProfit = hideUnprofitable ? r.totalProfit > 0 : true;
           return matchesSearch && meetsProfit;
         });
 
@@ -701,8 +741,8 @@
         [
           "outputName",
           "totalInputCost",
-          "totalOutputRevenue",
-          "profit",
+          "profitPerUnit",
+          "totalProfit",
           "minVolume",
           "marginPct",
         ].forEach((col) => {
@@ -722,21 +762,23 @@
         tbody.innerHTML = "";
 
         let totalRecipesCount = lastResults.length;
-        let profitableCount = lastResults.filter((r) => r.profit > 0).length;
-        let maxProfit =
+        let profitableCount = lastResults.filter(
+          (r) => r.totalProfit > 0,
+        ).length;
+        let maxProfitUnit =
           lastResults.length > 0
-            ? Math.max(...lastResults.map((r) => r.profit))
+            ? Math.max(...lastResults.map((r) => r.profitPerUnit))
             : 0;
 
         if (results.length === 0) {
           tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-500">No matching recipes or items found.</td></tr>`;
-          updateStats(totalRecipesCount, profitableCount, maxProfit);
+          updateStats(totalRecipesCount, profitableCount, maxProfitUnit);
           return;
         }
 
         results.forEach((res) => {
           const profitClass =
-            res.profit >= 0
+            res.profitPerUnit >= 0
               ? "text-emerald-400 font-semibold"
               : "text-rose-400 font-semibold";
 
@@ -756,26 +798,26 @@
           row.innerHTML = `
                     <td class="p-3">
                         <div class="font-medium text-white">${res.outputName}</div>
-                        <div class="text-xs text-slate-400">Qty produced: ${res.outputQty} (Value: ${res.outPrice.toLocaleString()} gp ea)</div>
+                        <div class="text-xs text-slate-400">Qty produced: ${res.outputQty}</div>
                     </td>
                     <td class="p-3 text-slate-300">${res.totalInputCost.toLocaleString()} gp</td>
-                    <td class="p-3 text-slate-300">${res.totalOutputRevenue.toLocaleString()} gp</td>
-                    <td class="p-3 ${profitClass}">${res.profit.toLocaleString()} gp</td>
+                    <td class="p-3 ${profitClass}">${Math.round(res.profitPerUnit).toLocaleString()} gp</td>
+                    <td class="p-3 text-slate-300">${Math.round(res.totalProfit).toLocaleString()} gp</td>
                     <td class="p-3 ${volClass}">${volText}</td>
                     <td class="p-3 font-semibold ${profitClass}">${res.marginPct.toFixed(1)}%</td>
                 `;
           tbody.appendChild(row);
         });
 
-        updateStats(totalRecipesCount, profitableCount, maxProfit);
+        updateStats(totalRecipesCount, profitableCount, maxProfitUnit);
       }
 
-      function updateStats(total, profitable, maxProf) {
+      function updateStats(total, profitable, maxProfUnit) {
         document.getElementById("stat-total-recipes").textContent = total;
         document.getElementById("stat-profitable-count").textContent =
           profitable;
         document.getElementById("stat-max-profit").textContent =
-          maxProf.toLocaleString() + " gp";
+          Math.round(maxProfUnit).toLocaleString() + " gp";
       }
     </script>
   </body>
