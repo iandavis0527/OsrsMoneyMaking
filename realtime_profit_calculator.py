@@ -1,5 +1,6 @@
 import argparse
 import json
+import re
 import sys
 
 import requests
@@ -31,29 +32,91 @@ def fetch_api_data():
         sys.exit(1)
 
 
-def build_name_to_id_map(mapping_data):
-    """Creates a case-insensitive dictionary mapping item names to their IDs."""
+def build_name_maps(mapping_data):
+    """Creates case-insensitive name-to-id maps and original casing maps."""
     name_map = {}
+    original_names = {}
     for item in mapping_data:
-        name = item.get("name", "").lower()
+        orig_name = item.get("name", "")
+        name = orig_name.lower()
         item_id = item.get("id")
         if name and item_id is not None:
             name_map[name] = item_id
-    return name_map
+            original_names[name] = orig_name
+    return name_map, original_names
+
+
+def expand_wildcard_recipes(recipes, original_names):
+    """
+    Expands recipes containing '(*)' wildcards into concrete recipes
+    by matching items in the OSRS database.
+    """
+    expanded = []
+    for recipe in recipes:
+        inputs = recipe.get("inputs", [])
+        output_template = recipe.get("output", {})
+
+        # Find if any input has a wildcard
+        wildcard_idx = -1
+        for i, inp in enumerate(inputs):
+            if "(*)" in inp.get("item", ""):
+                wildcard_idx = i
+                break
+
+        if wildcard_idx == -1:
+            # No wildcard, keep recipe as is
+            expanded.append(recipe)
+            continue
+
+        # Build regex pattern from wildcard input template (e.g. "grimy (*)")
+        template_str = inputs[wildcard_idx]["item"]
+        parts = template_str.split("(*)")
+        escaped_parts = [re.escape(p) for p in parts]
+        regex_str = "(.+)".join(escaped_parts)
+        pattern = re.compile(f"^{regex_str}$", re.IGNORECASE)
+
+        # Find all matching items in the database
+        matched_wildcards = []
+        for _, orig_name in original_names.values():
+            m = pattern.match(orig_name)
+            if m:
+                wildcard_val = m.group(1)
+                matched_wildcards.append((orig_name, wildcard_val))
+
+        # Generate concrete recipes for each match
+        for concrete_input_name, wildcard_val in matched_wildcards:
+            new_inputs = []
+            for i, inp in enumerate(inputs):
+                if i == wildcard_idx:
+                    new_inputs.append(
+                        {"item": concrete_input_name, "quantity": inp["quantity"]}
+                    )
+                else:
+                    new_inputs.append(inp.copy())
+
+            # Substitute wildcard into output item name if present
+            out_item_template = output_template.get("item", "")
+            if "(*)" in out_item_template:
+                concrete_output_name = out_item_template.replace("(*)", wildcard_val)
+            else:
+                concrete_output_name = out_item_template
+
+            new_recipe = {
+                "inputs": new_inputs,
+                "output": {
+                    "item": concrete_output_name,
+                    "quantity": output_template.get("quantity", 1),
+                },
+            }
+            expanded.append(new_recipe)
+
+    return expanded
 
 
 def calculate_conversion_profit(
-    input_items_dict,
-    output_item_name,
-    quantity_output_produced,
-    mapping_data,
-    prices_data,
-    name_map,
+    input_items_dict, output_item_name, quantity_output_produced, prices_data, name_map
 ):
-    """
-    Calculates profit margin when buying input items and selling/valuing an output item
-    using its instant buy (high) price.
-    """
+    """Calculates profit margin using instant-buy prices for inputs and output."""
     # 1. Evaluate Output Item
     output_key = output_item_name.lower()
     if output_key not in name_map:
@@ -69,7 +132,6 @@ def calculate_conversion_profit(
         print(f"Error: No price data available for output item '{output_item_name}'.")
         return
 
-    # Updated: Using 'high' price for the instant-buy price of the output item
     output_instant_buy_price = output_pricing.get("high", 0)
 
     print("\n" + "=" * 50)
@@ -100,7 +162,6 @@ def calculate_conversion_profit(
             )
             continue
 
-        # Buying input items at instant buy (high) price
         buy_price = item_pricing.get("high", 0)
         total_cost = buy_price * qty
         total_input_cost += total_cost
@@ -110,8 +171,6 @@ def calculate_conversion_profit(
     # 3. Calculate Profit Margins
     total_output_revenue = output_instant_buy_price * quantity_output_produced
     profit = total_output_revenue - total_input_cost
-
-    # Calculate margin percentage (avoiding division by zero)
     profit_margin_pct = (profit / total_input_cost * 100) if total_input_cost > 0 else 0
 
     print("-" * 75)
@@ -128,19 +187,18 @@ def calculate_conversion_profit(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="OSRS Profit Calculator: Calculate profit margins from a JSON recipe file."
+        description="OSRS Profit Calculator with Wildcard Support."
     )
     parser.add_argument(
         "--json",
         default="realtime_profit_inputs.json",
-        help="Path to the JSON file containing recipes.",
+        help="Path to the JSON file containing recipes (supports wildcards like 'grimy (*)').",
     )
     args = parser.parse_args()
 
-    # Load and parse JSON file
     try:
         with open(args.json, "r", encoding="utf-8") as f:
-            recipes = json.load(f)
+            raw_recipes = json.load(f)
     except FileNotFoundError:
         print(f"Error: The file '{args.json}' was not found.")
         sys.exit(1)
@@ -148,22 +206,23 @@ if __name__ == "__main__":
         print(f"Error: Failed to parse JSON file: {e}")
         sys.exit(1)
 
-    if not isinstance(recipes, list):
+    if not isinstance(raw_recipes, list):
         print("Error: JSON root element must be an array of recipe objects.")
         sys.exit(1)
 
-    # Fetch API data once for all recipes in the file
     mapping_data, prices_data = fetch_api_data()
-    name_map = build_name_to_id_map(mapping_data)
+    name_map, original_names = build_name_maps(mapping_data)
 
-    # Process each recipe
+    # Expand any wildcard templates into concrete recipes
+    recipes = expand_wildcard_recipes(raw_recipes, original_names)
+
+    # Process each resolved recipe
     for index, recipe in enumerate(recipes, start=1):
         print(f"\nProcessing Recipe #{index}...")
 
         raw_inputs = recipe.get("inputs", [])
         output_data = recipe.get("output", {})
 
-        # Convert input list of objects into a dictionary of {item_name: quantity}
         inputs_dict = {}
         for inp in raw_inputs:
             item_name = inp.get("item")
@@ -184,7 +243,6 @@ if __name__ == "__main__":
             input_items_dict=inputs_dict,
             output_item_name=output_item_name.strip(),
             quantity_output_produced=int(output_qty),
-            mapping_data=mapping_data,
             prices_data=prices_data,
             name_map=name_map,
         )

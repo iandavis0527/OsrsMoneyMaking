@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="en" class="h-full bg-slate-900">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OSRS Real-time Profit & Batch Conversion Calculator</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Material Icons -->
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons+Round"
+      rel="stylesheet"
+    />
+    <!-- Google Fonts: Inter -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+      }
+      .material-shadow {
+        box-shadow:
+          0 4px 6px -1px rgba(0, 0, 0, 0.3),
+          0 2px 4px -1px rgba(0, 0, 0, 0.18);
+      }
+      .material-card {
+        box-shadow:
+          0 1px 3px 0 rgba(0, 0, 0, 0.2),
+          0 1px 2px 0 rgba(0, 0, 0, 0.12);
+      }
+      /* Custom Scrollbar for Dark Theme */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #1e293b;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #475569;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #64748b;
+      }
+    </style>
+  </head>
+  <body class="h-full text-slate-100 flex flex-col">
+    <header
+      class="bg-slate-800 border-b border-slate-700 sticky top-0 z-50 material-shadow"
+    >
+      <div
+        class="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4"
+      >
+        <div class="flex items-center gap-3">
+          <div
+            class="bg-emerald-600 p-2.5 rounded-xl text-white flex items-center justify-center material-shadow"
+          >
+            <span class="material-icons-round text-2xl">analytics</span>
+          </div>
+          <div>
+            <h1
+              class="text-xl font-bold tracking-tight text-white flex items-center gap-2"
+            >
+              OSRS Profit & Liquidity Hub
+              <span
+                id="api-status-badge"
+                class="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 font-medium"
+                >Connecting to Wiki API...</span
+              >
+            </h1>
+            <p class="text-xs text-slate-400">
+              Real-time GE Prices, High Alch Values & 24h Trade Volume
+              Bottlenecks
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+          <button
+            onclick="loadPresets()"
+            class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium px-4 py-2 rounded-lg transition flex items-center gap-2 border border-slate-600"
+          >
+            <span class="material-icons-round text-sm">playlist_add</span>
+            Presets
+          </button>
+          <button
+            onclick="initializeAppData()"
+            class="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition flex items-center gap-2 material-shadow"
+          >
+            <span class="material-icons-round text-sm" id="refresh-icon"
+              >refresh</span
+            >
+            Sync Data
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main
+      class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 overflow-y-auto"
+    >
+      <!-- Left Panel: Global Settings & Recipe Blueprint Builder (5 Cols) -->
+      <div class="lg:col-span-5 flex flex-col gap-6">
+        <!-- Price Mode Selection Card -->
+        <div
+          class="bg-slate-800 rounded-xl p-5 border border-slate-700 material-card"
+        >
+          <h2
+            class="text-sm font-semibold uppercase tracking-wider text-emerald-400 mb-4 flex items-center gap-2"
+          >
+            <span class="material-icons-round text-base">tune</span> Valuation
+            Settings
+          </h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1.5"
+                >Input Cost Source</label
+              >
+              <select
+                id="input-price-mode"
+                onchange="runCalculation()"
+                class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500"
+              >
+                <option value="high" selected>GE Instant Buy (High)</option>
+                <option value="low">GE Instant Sell (Low)</option>
+                <option value="alch">High Alch Value</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1.5"
+                >Output Value Source</label
+              >
+              <select
+                id="output-price-mode"
+                onchange="runCalculation()"
+                class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500"
+              >
+                <option value="low" selected>GE Instant Sell (Low)</option>
+                <option value="high">GE Instant Buy (High)</option>
+                <option value="alch">High Alch Value</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recipe Blueprint Manager -->
+        <div
+          class="bg-slate-800 rounded-xl p-5 border border-slate-700 material-card flex-1 flex flex-col"
+        >
+          <div class="flex justify-between items-center mb-4">
+            <h2
+              class="text-sm font-semibold uppercase tracking-wider text-emerald-400 flex items-center gap-2"
+            >
+              <span class="material-icons-round text-base">science</span> Recipe
+              Blueprints
+            </h2>
+            <button
+              onclick="addNewRecipeCard()"
+              class="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 text-xs font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1 border border-emerald-500/30"
+            >
+              <span class="material-icons-round text-sm">add</span> Add
+              Blueprint
+            </button>
+          </div>
+
+          <p class="text-xs text-slate-400 mb-4">
+            Use
+            <code
+              class="bg-slate-900 text-emerald-300 px-1.5 py-0.5 rounded border border-slate-700"
+              >(*)</code
+            >
+            as a wildcard to batch convert items (e.g., input
+            <span class="text-slate-300">grimy (*)</span> & output
+            <span class="text-slate-300">(*)</span>).
+          </p>
+
+          <!-- Container for Interactive Recipe Cards -->
+          <div
+            id="recipes-container"
+            class="flex flex-col gap-4 overflow-y-auto max-h-[500px] pr-1"
+          >
+            <!-- Dynamic Recipe Cards Populated Here -->
+          </div>
+
+          <div class="mt-4 pt-4 border-t border-slate-700 flex justify-end">
+            <button
+              onclick="runCalculation()"
+              class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 px-4 rounded-lg transition flex items-center justify-center gap-2 material-shadow text-sm"
+            >
+              <span class="material-icons-round text-base">calculate</span>
+              Calculate Margins & Volumes
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Panel: Analytics Results Table (7 Cols) -->
+      <div class="lg:col-span-7 flex flex-col gap-6">
+        <!-- Top Metric Summaries -->
+        <div class="grid grid-cols-3 gap-4">
+          <div
+            class="bg-slate-800 p-4 rounded-xl border border-slate-700 material-card"
+          >
+            <span class="text-xs text-slate-400 block mb-1"
+              >Recipes Evaluated</span
+            >
+            <span id="stat-total-recipes" class="text-xl font-bold text-white"
+              >0</span
+            >
+          </div>
+          <div
+            class="bg-slate-800 p-4 rounded-xl border border-slate-700 material-card"
+          >
+            <span class="text-xs text-slate-400 block mb-1"
+              >Profitable Items</span
+            >
+            <span
+              id="stat-profitable-count"
+              class="text-xl font-bold text-emerald-400"
+              >0</span
+            >
+          </div>
+          <div
+            class="bg-slate-800 p-4 rounded-xl border border-slate-700 material-card"
+          >
+            <span class="text-xs text-slate-400 block mb-1"
+              >Max Potential Profit</span
+            >
+            <span id="stat-max-profit" class="text-xl font-bold text-cyan-400"
+              >0 gp</span
+            >
+          </div>
+        </div>
+
+        <!-- Main Results Data Table -->
+        <div
+          class="bg-slate-800 rounded-xl border border-slate-700 material-card flex-1 flex flex-col overflow-hidden"
+        >
+          <div
+            class="p-4 border-b border-slate-700 flex flex-col sm:flex-row justify-between items-center gap-3 bg-slate-800/80"
+          >
+            <h2
+              class="text-sm font-semibold uppercase tracking-wider text-emerald-400 flex items-center gap-2"
+            >
+              <span class="material-icons-round text-base">table_chart</span>
+              Results & Volume Bottlenecks
+            </h2>
+
+            <div
+              class="flex items-center gap-3 w-full sm:w-auto justify-end flex-wrap"
+            >
+              <label
+                class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer select-none bg-slate-900 border border-slate-700 px-3 py-1.5 rounded-lg"
+              >
+                <input
+                  type="checkbox"
+                  id="hide-unprofitable"
+                  onchange="runCalculation()"
+                  class="rounded bg-slate-800 border-slate-700 text-emerald-600 focus:ring-emerald-500"
+                />
+                Hide Unprofitable
+              </label>
+              <input
+                type="text"
+                id="result-search"
+                oninput="runCalculation()"
+                placeholder="Search item..."
+                class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+          </div>
+
+          <div class="overflow-x-auto flex-1">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr
+                  class="bg-slate-900/60 text-slate-400 text-xs font-semibold uppercase tracking-wider border-b border-slate-700 select-none"
+                >
+                  <th
+                    onclick="sortTable('outputName')"
+                    class="p-3 cursor-pointer hover:text-white transition"
+                  >
+                    Output Item <span id="sort-outputName"></span>
+                  </th>
+                  <th
+                    onclick="sortTable('totalInputCost')"
+                    class="p-3 cursor-pointer hover:text-white transition"
+                  >
+                    Input Cost <span id="sort-totalInputCost"></span>
+                  </th>
+                  <th
+                    onclick="sortTable('totalOutputRevenue')"
+                    class="p-3 cursor-pointer hover:text-white transition"
+                  >
+                    Output Value <span id="sort-totalOutputRevenue"></span>
+                  </th>
+                  <th
+                    onclick="sortTable('profit')"
+                    class="p-3 cursor-pointer hover:text-white transition"
+                  >
+                    Net Profit
+                    <span id="sort-profit" class="text-emerald-400">▲</span>
+                  </th>
+                  <th
+                    onclick="sortTable('bottleneckBatches')"
+                    class="p-3 cursor-pointer hover:text-white transition"
+                    title="Max achievable daily conversions based on GE daily trade volumes of inputs & output"
+                  >
+                    24h Max Batches <span id="sort-bottleneckBatches"></span>
+                  </th>
+                  <th
+                    onclick="sortTable('marginPct')"
+                    class="p-3 cursor-pointer hover:text-white transition"
+                  >
+                    Margin <span id="sort-marginPct"></span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody
+                id="results-tbody"
+                class="divide-y divide-slate-700/60 text-sm"
+              >
+                <tr>
+                  <td colspan="6" class="p-8 text-center text-slate-500">
+                    <span
+                      class="material-icons-round text-3xl mb-2 block text-slate-600"
+                      >hourglass_empty</span
+                    >
+                    Syncing market prices & trade volume metrics...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      // OSRS Wiki API Endpoints
+      const MAPPING_URL = "https://prices.runescape.wiki/api/v1/osrs/mapping";
+      const LATEST_PRICES_URL =
+        "https://prices.runescape.wiki/api/v1/osrs/latest";
+      const VOLUME_24H_URL = "https://prices.runescape.wiki/api/v1/osrs/24h";
+      const HEADERS = {
+        "User-Agent": "OSRSProfitVolumeCalculator/3.0 (contact@example.com)",
+      };
+
+      // Global State Variables
+      let itemMapping = [];
+      let itemPrices = {};
+      let item24hData = {};
+      let nameToIdMap = {};
+      let originalNamesMap = {};
+      let recipesData = [];
+      let lastResults = [];
+
+      // Table Sorting State
+      let currentSortColumn = "profit";
+      let currentSortAscending = false;
+
+      // Initialize App on DOM Content Loaded
+      window.addEventListener("DOMContentLoaded", () => {
+        initializeAppData();
+      });
+
+      // Fetch Live Market Data from OSRS Wiki APIs
+      async function initializeAppData() {
+        const statusBadge = document.getElementById("api-status-badge");
+        const refreshIcon = document.getElementById("refresh-icon");
+        refreshIcon.classList.add("animate-spin");
+        statusBadge.textContent = "Fetching Live Prices & Volumes...";
+        statusBadge.className =
+          "text-xs px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 font-medium";
+
+        try {
+          const [mappingRes, pricesRes, volumeRes] = await Promise.all([
+            fetch(MAPPING_URL, { headers: HEADERS }),
+            fetch(LATEST_PRICES_URL, { headers: HEADERS }),
+            fetch(VOLUME_24H_URL, { headers: HEADERS }),
+          ]);
+
+          if (!mappingRes.ok || !pricesRes.ok || !volumeRes.ok) {
+            throw new Error("Failed to fetch data from OSRS Wiki API");
+          }
+
+          itemMapping = await mappingRes.json();
+          const pricesJson = await pricesRes.json();
+          const volumeJson = await volumeRes.json();
+
+          itemPrices = pricesJson.data || {};
+          item24hData = volumeJson.data || {};
+
+          // Construct fast lookup maps
+          nameToIdMap = {};
+          originalNamesMap = {};
+          itemMapping.forEach((item) => {
+            const origName = item.name || "";
+            const lowName = origName.toLowerCase();
+            const id = item.id;
+            if (lowName && id !== undefined) {
+              nameToIdMap[lowName] = id;
+              originalNamesMap[lowName] = origName;
+            }
+          });
+
+          statusBadge.textContent = "Live Wiki API Connected";
+          statusBadge.className =
+            "text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-medium";
+
+          if (recipesData.length === 0) {
+            loadPresets();
+          } else {
+            runCalculation();
+          }
+        } catch (err) {
+          console.error("API Initialization Error:", err);
+          statusBadge.textContent = "API Sync Failed";
+          statusBadge.className =
+            "text-xs px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30 font-medium";
+        } finally {
+          refreshIcon.classList.remove("animate-spin");
+        }
+      }
+
+      // Default Blueprint Presets
+      function loadPresets() {
+        recipesData = [
+          {
+            inputs: [{ item: "grimy (*)", quantity: 1 }],
+            output: { item: "(*)", quantity: 1 },
+          },
+          {
+            inputs: [
+              { item: "uncut dragonstone", quantity: 1 },
+              { item: "cosmic rune", quantity: 1 },
+            ],
+            output: { item: "dragonstone bolt tips", quantity: 12 },
+          },
+        ];
+        renderRecipes();
+        runCalculation();
+      }
+
+      function renderRecipes() {
+        const container = document.getElementById("recipes-container");
+        container.innerHTML = "";
+
+        recipesData.forEach((recipe, rIdx) => {
+          const card = document.createElement("div");
+          card.className =
+            "bg-slate-900/60 p-4 rounded-xl border border-slate-700 flex flex-col gap-3 relative";
+
+          let inputsHtml = recipe.inputs
+            .map(
+              (inp, iIdx) => `
+                    <div class="flex items-center gap-2">
+                        <input type="text" value="${inp.item}" placeholder="Input Item Name" onchange="updateRecipeInput(${rIdx}, ${iIdx}, 'item', this.value)" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+                        <input type="number" value="${inp.quantity}" min="1" placeholder="Qty" onchange="updateRecipeInput(${rIdx}, ${iIdx}, 'quantity', this.value)" class="w-20 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+                        <button onclick="removeInput(${rIdx}, ${iIdx})" class="text-slate-500 hover:text-rose-400 p-1 transition"><span class="material-icons-round text-base">remove_circle_outline</span></button>
+                    </div>
+                `,
+            )
+            .join("");
+
+          card.innerHTML = `
+                    <div class="flex justify-between items-center text-xs font-semibold text-slate-400">
+                        <span>Blueprint #${rIdx + 1}</span>
+                        <button onclick="removeRecipeCard(${rIdx})" class="text-rose-400/80 hover:text-rose-400 flex items-center gap-0.5 transition"><span class="material-icons-round text-sm">delete</span> Remove</button>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        <span class="text-[11px] uppercase tracking-wider text-slate-400 font-medium">Input Ingredients</span>
+                        ${inputsHtml}
+                        <button onclick="addInput(${rIdx})" class="self-start text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1 mt-1 transition"><span class="material-icons-round text-sm">add</span> Add Input</button>
+                    </div>
+                    <div class="border-t border-slate-800 pt-2 flex flex-col gap-2">
+                        <span class="text-[11px] uppercase tracking-wider text-slate-400 font-medium">Output Product</span>
+                        <div class="flex items-center gap-2">
+                            <input type="text" value="${recipe.output.item}" placeholder="Output Item Name" onchange="updateRecipeOutput(${rIdx}, 'item', this.value)" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+                            <input type="number" value="${recipe.output.quantity}" min="1" placeholder="Qty" onchange="updateRecipeOutput(${rIdx}, 'quantity', this.value)" class="w-20 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+                        </div>
+                    </div>
+                `;
+          container.appendChild(card);
+        });
+      }
+
+      function addNewRecipeCard() {
+        recipesData.push({
+          inputs: [{ item: "", quantity: 1 }],
+          output: { item: "", quantity: 1 },
+        });
+        renderRecipes();
+      }
+
+      function removeRecipeCard(rIdx) {
+        recipesData.splice(rIdx, 1);
+        renderRecipes();
+        runCalculation();
+      }
+
+      function addInput(rIdx) {
+        recipesData[rIdx].inputs.push({ item: "", quantity: 1 });
+        renderRecipes();
+      }
+
+      function removeInput(rIdx, iIdx) {
+        if (recipesData[rIdx].inputs.length > 1) {
+          recipesData[rIdx].inputs.splice(iIdx, 1);
+          renderRecipes();
+        }
+      }
+
+      function updateRecipeInput(rIdx, iIdx, field, val) {
+        recipesData[rIdx].inputs[iIdx][field] =
+          field === "quantity" ? Math.max(1, parseInt(val) || 1) : val;
+      }
+
+      function updateRecipeOutput(rIdx, field, val) {
+        recipesData[rIdx].output[field] =
+          field === "quantity" ? Math.max(1, parseInt(val) || 1) : val;
+      }
+
+      // Wildcard Expansion Engine
+      function expandRecipes(rawRecipes) {
+        const expanded = [];
+        rawRecipes.forEach((recipe) => {
+          const inputs = recipe.inputs || [];
+          const outputTemplate = recipe.output || {};
+
+          let wildcardIdx = -1;
+          for (let i = 0; i < inputs.length; i++) {
+            if (inputs[i].item.includes("(*)")) {
+              wildcardIdx = i;
+              break;
+            }
+          }
+
+          // Standard recipe with no wildcard
+          if (wildcardIdx === -1) {
+            expanded.push(recipe);
+            return;
+          }
+
+          // Wildcard matching against database items
+          const templateStr = inputs[wildcardIdx].item;
+          const parts = templateStr.split("(*)");
+          const escapedParts = parts.map((p) =>
+            p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+          );
+          const regexStr = "^" + escapedParts.join("(.+)") + "$";
+          const pattern = new RegExp(regexStr, "i");
+
+          const matchedWildcards = [];
+          for (const [lowName, origName] of Object.entries(originalNamesMap)) {
+            const m = pattern.exec(origName);
+            if (m) {
+              matchedWildcards.push({
+                concreteName: origName,
+                wildcardVal: m[1],
+              });
+            }
+          }
+
+          matchedWildcards.forEach((match) => {
+            const newInputs = inputs.map((inp, idx) => {
+              if (idx === wildcardIdx) {
+                return { item: match.concreteName, quantity: inp.quantity };
+              }
+              return { ...inp };
+            });
+
+            let outItemName = outputTemplate.item;
+            if (outItemName.includes("(*)")) {
+              outItemName = outItemName.replace("(*)", match.wildcardVal);
+            }
+
+            expanded.push({
+              inputs: newInputs,
+              output: { item: outItemName, quantity: outputTemplate.quantity },
+            });
+          });
+        });
+        return expanded;
+      }
+
+      // Correct Extraction of Item Valuation & 24h Volume Data
+      function getItemData(itemName, priceMode) {
+        const lowKey = itemName.toLowerCase().trim();
+        const id = nameToIdMap[lowKey];
+        if (!id) return { price: 0, volume24h: 0, id: null };
+
+        const itemInfo = itemMapping.find((i) => i.id === id) || {};
+        const pricing = itemPrices[id.toString()] || {};
+        const h24 = item24hData[id.toString()] || {};
+
+        // Calculate total 24h Volume by summing highPriceVolume and lowPriceVolume
+        const highVol = h24.highPriceVolume || 0;
+        const lowVol = h24.lowPriceVolume || 0;
+        const volume24h = highVol + lowVol;
+
+        let price = 0;
+        if (priceMode === "high") {
+          price = pricing.high || 0;
+        } else if (priceMode === "low") {
+          price = pricing.low || 0;
+        } else if (priceMode === "alch") {
+          price = itemInfo.highalch || itemInfo.value || 0;
+        }
+
+        return { price, volume24h, id };
+      }
+
+      // Execute Calculation Pipeline
+      function runCalculation() {
+        const inputMode = document.getElementById("input-price-mode").value;
+        const outputMode = document.getElementById("output-price-mode").value;
+        const hideUnprofitable =
+          document.getElementById("hide-unprofitable").checked;
+        const searchQuery = document
+          .getElementById("result-search")
+          .value.toLowerCase();
+
+        const expandedRecipes = expandRecipes(recipesData);
+        lastResults = [];
+
+        expandedRecipes.forEach((recipe) => {
+          let totalInputCost = 0;
+          let recipePossibleBatches = [];
+          const inputBreakdown = [];
+
+          recipe.inputs.forEach((inp) => {
+            const { price, volume24h, id } = getItemData(inp.item, inputMode);
+            const qtyNeeded = Math.max(1, inp.quantity);
+            const totalCost = price * qtyNeeded;
+            totalInputCost += totalCost;
+
+            // Batches allowed by this input's 24h volume
+            const maxBatchesFromInput = Math.floor(volume24h / qtyNeeded);
+            recipePossibleBatches.push(maxBatchesFromInput);
+
+            inputBreakdown.push({
+              name: inp.item,
+              qty: qtyNeeded,
+              price,
+              volume24h,
+              maxBatchesFromInput,
+            });
+          });
+
+          const outName = recipe.output.item;
+          const outputQty = Math.max(1, recipe.output.quantity || 1);
+          const {
+            price: outPrice,
+            volume24h: outVolume24h,
+            id: outId,
+          } = getItemData(outName, outputMode);
+
+          // Batches allowed by output's 24h market volume
+          const maxBatchesFromOutput = Math.floor(outVolume24h / outputQty);
+          recipePossibleBatches.push(maxBatchesFromOutput);
+
+          // Bottleneck batches is the Minimum of all constraints
+          const bottleneckBatches =
+            recipePossibleBatches.length > 0
+              ? Math.min(...recipePossibleBatches)
+              : 0;
+
+          const totalOutputRevenue = outPrice * outputQty;
+          const profit = totalOutputRevenue - totalInputCost;
+          const marginPct =
+            totalInputCost > 0 ? (profit / totalInputCost) * 100 : 0;
+
+          lastResults.push({
+            outputName: outName,
+            outputQty,
+            outPrice,
+            outVolume24h,
+            totalInputCost,
+            totalOutputRevenue,
+            profit,
+            marginPct,
+            bottleneckBatches,
+            inputBreakdown,
+            valid: outId !== null,
+          });
+        });
+
+        // Filter
+        let filtered = lastResults.filter((r) => {
+          const matchesSearch = r.outputName
+            .toLowerCase()
+            .includes(searchQuery);
+          const meetsProfit = hideUnprofitable ? r.profit > 0 : true;
+          return matchesSearch && meetsProfit;
+        });
+
+        // Sort
+        filtered.sort((a, b) => {
+          let valA = a[currentSortColumn];
+          let valB = b[currentSortColumn];
+
+          if (typeof valA === "string") {
+            valA = valA.toLowerCase();
+            valB = valB.toLowerCase();
+          }
+
+          if (valA < valB) return currentSortAscending ? -1 : 1;
+          if (valA > valB) return currentSortAscending ? 1 : -1;
+          return 0;
+        });
+
+        renderResultsTable(filtered);
+      }
+
+      function sortTable(column) {
+        if (currentSortColumn === column) {
+          currentSortAscending = !currentSortAscending;
+        } else {
+          currentSortColumn = column;
+          currentSortAscending = column === "outputName"; // Default ascending for strings, descending for numbers
+        }
+
+        [
+          "outputName",
+          "totalInputCost",
+          "totalOutputRevenue",
+          "profit",
+          "bottleneckBatches",
+          "marginPct",
+        ].forEach((col) => {
+          const indicator = document.getElementById(`sort-${col}`);
+          if (indicator) {
+            indicator.textContent =
+              col === currentSortColumn
+                ? currentSortAscending
+                  ? "▲"
+                  : "▼"
+                : "";
+          }
+        });
+
+        runCalculation();
+      }
+
+      function renderResultsTable(results) {
+        const tbody = document.getElementById("results-tbody");
+        tbody.innerHTML = "";
+
+        let totalRecipesCount = lastResults.length;
+        let profitableCount = lastResults.filter((r) => r.profit > 0).length;
+        let maxProfit =
+          lastResults.length > 0
+            ? Math.max(...lastResults.map((r) => r.profit))
+            : 0;
+
+        if (results.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-500">No matching recipes or items found.</td></tr>`;
+          updateStats(totalRecipesCount, profitableCount, maxProfit);
+          return;
+        }
+
+        results.forEach((res) => {
+          const profitClass =
+            res.profit >= 0
+              ? "text-emerald-400 font-semibold"
+              : "text-rose-400 font-semibold";
+
+          // Color Code Bottleneck Volume: >10k Green, 1k-10k Yellow, <1k Red
+          let volClass = "text-emerald-400 font-semibold";
+          let volBadgeClass =
+            "bg-emerald-500/10 border-emerald-500/30 text-emerald-400";
+
+          if (res.bottleneckBatches < 1000) {
+            volClass = "text-rose-400 font-semibold";
+            volBadgeClass = "bg-rose-500/10 border-rose-500/30 text-rose-400";
+          } else if (res.bottleneckBatches < 10000) {
+            volClass = "text-amber-400 font-semibold";
+            volBadgeClass =
+              "bg-amber-500/10 border-amber-500/30 text-amber-400";
+          }
+
+          // Construct tooltip details
+          const inputDetails = res.inputBreakdown
+            .map((i) => `${i.name}: ${i.volume24h.toLocaleString()} 24h Vol`)
+            .join(" | ");
+
+          const row = document.createElement("tr");
+          row.className =
+            "hover:bg-slate-700/30 transition border-b border-slate-700/50";
+
+          row.innerHTML = `
+                    <td class="p-3">
+                        <div class="font-medium text-white">${res.outputName}</div>
+                        <div class="text-xs text-slate-400">Qty: ${res.outputQty} (${res.outPrice.toLocaleString()} gp) | Output Vol: ${res.outVolume24h.toLocaleString()}</div>
+                    </td>
+                    <td class="p-3 text-slate-300">${res.totalInputCost.toLocaleString()} gp</td>
+                    <td class="p-3 text-slate-300">${res.totalOutputRevenue.toLocaleString()} gp</td>
+                    <td class="p-3 ${profitClass}">${res.profit.toLocaleString()} gp</td>
+                    <td class="p-3">
+                        <span class="px-2.5 py-1 rounded-md border ${volBadgeClass} text-xs inline-flex items-center gap-1" title="Input Volumes: ${inputDetails}">
+                            <span class="material-icons-round text-xs">tune</span>
+                            ${res.bottleneckBatches.toLocaleString()} batches/day
+                        </span>
+                    </td>
+                    <td class="p-3 font-semibold ${profitClass}">${res.marginPct.toFixed(1)}%</td>
+                `;
+          tbody.appendChild(row);
+        });
+
+        updateStats(totalRecipesCount, profitableCount, maxProfit);
+      }
+
+      function updateStats(total, profitable, maxProf) {
+        document.getElementById("stat-total-recipes").textContent = total;
+        document.getElementById("stat-profitable-count").textContent =
+          profitable;
+        document.getElementById("stat-max-profit").textContent =
+          (maxProf === -Infinity ? 0 : maxProf).toLocaleString() + " gp";
+      }
+    </script>
+  </body>
+</html>

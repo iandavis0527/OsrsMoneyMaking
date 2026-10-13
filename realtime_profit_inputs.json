@@ -1,12 +1,12 @@
 [
   {
     "inputs": [
-      { "item": "Grimy Guam Leaf", "quantity": 27 },
-      { "item": "Nature Rune", "quantity": 1 }
+      { "item": "grimy (*)", "quantity": 1 },
+      { "item": "nature rune", "quantity": 1 }
     ],
     "output": {
-      "item": "Guam Leaf",
-      "quantity": 27
+      "item": "(*)",
+      "quantity": 1
     }
   }
 ]
