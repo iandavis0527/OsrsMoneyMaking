@@ -1,4 +1,5 @@
 import argparse
+import json
 import sys
 
 import requests
@@ -8,7 +9,6 @@ MAPPING_URL = "https://prices.runescape.wiki/api/v1/osrs/mapping"
 LATEST_PRICES_URL = "https://prices.runescape.wiki/api/v1/osrs/latest"
 
 # Best Practice: The OSRS Wiki API requires a descriptive User-Agent
-# identifying your application so you don't get rate-limited or blocked.
 HEADERS = {"User-Agent": "OSRSProfitCalculator/1.0 (contact@example.com)"}
 
 
@@ -43,18 +43,17 @@ def build_name_to_id_map(mapping_data):
 
 
 def calculate_conversion_profit(
-    input_items_dict, output_item_name, quantity_output_produced=1
+    input_items_dict,
+    output_item_name,
+    quantity_output_produced,
+    mapping_data,
+    prices_data,
+    name_map,
 ):
     """
-    Calculates profit margin when buying input items and selling an output item.
-
-    :param input_items_dict: Dict of {item_name: quantity_needed}
-    :param output_item_name: Name of the resulting output item
-    :param quantity_output_produced: How many of the output item are produced per batch
+    Calculates profit margin when buying input items and selling/valuing an output item
+    using its instant buy (high) price.
     """
-    mapping_data, prices_data = fetch_api_data()
-    name_map = build_name_to_id_map(mapping_data)
-
     # 1. Evaluate Output Item
     output_key = output_item_name.lower()
     if output_key not in name_map:
@@ -70,12 +69,12 @@ def calculate_conversion_profit(
         print(f"Error: No price data available for output item '{output_item_name}'.")
         return
 
-    # When selling an item on the Grand Exchange instantly, you receive the 'low' price
-    output_sell_price = output_pricing.get("low", 0)
+    # Updated: Using 'high' price for the instant-buy price of the output item
+    output_instant_buy_price = output_pricing.get("high", 0)
 
     print("\n" + "=" * 50)
     print(f"OUTPUT ITEM: {output_item_name} (ID: {output_id})")
-    print(f"  - Instant-Sell Price (Low): {output_sell_price:,} gp")
+    print(f"  - Instant-Buy Price (High): {output_instant_buy_price:,} gp")
     print("=" * 50)
 
     # 2. Evaluate Input Items
@@ -101,7 +100,7 @@ def calculate_conversion_profit(
             )
             continue
 
-        # When buying an item on the Grand Exchange instantly, you pay the 'high' price
+        # Buying input items at instant buy (high) price
         buy_price = item_pricing.get("high", 0)
         total_cost = buy_price * qty
         total_input_cost += total_cost
@@ -109,17 +108,17 @@ def calculate_conversion_profit(
         print(f"{item_name:<30} | {qty:<6} | {buy_price:<18,d} | {total_cost:<15,d}")
 
     # 3. Calculate Profit Margins
-    total_output_revenue = output_sell_price * quantity_output_produced
+    total_output_revenue = output_instant_buy_price * quantity_output_produced
     profit = total_output_revenue - total_input_cost
 
     # Calculate margin percentage (avoiding division by zero)
     profit_margin_pct = (profit / total_input_cost * 100) if total_input_cost > 0 else 0
 
     print("-" * 75)
-    print("\nFINANCIAL SUMMARY:")
+    print("FINANCIAL SUMMARY:")
     print(f"  Total Input Cost:       {total_input_cost:,} gp")
     print(
-        f"  Total Output Revenue:   {total_output_revenue:,} gp  (Qty: {quantity_output_produced})"
+        f"  Total Output Value:     {total_output_revenue:,} gp  (Qty: {quantity_output_produced})"
     )
     print("  --------------------------------------------------")
     print(f"  Net Profit / Loss:      {profit:,} gp")
@@ -129,47 +128,63 @@ def calculate_conversion_profit(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="OSRS Profit Calculator: Calculate profit margins for item conversions."
+        description="OSRS Profit Calculator: Calculate profit margins from a JSON recipe file."
     )
     parser.add_argument(
-        "--input",
-        nargs="+",
-        help="Input items and quantities in the format ItemName:Quantity",
-        required=True,
-    )
-    parser.add_argument(
-        "--output_item",
-        help="Name of the output item produced from the input items.",
-        required=True,
-    )
-    parser.add_argument(
-        "--output_quantity",
-        default=1,
-        type=int,
-        help="Quantity of the output item produced per batch.",
+        "--json",
+        default="realtime_profit_inputs.json",
+        help="Path to the JSON file containing recipes.",
     )
     args = parser.parse_args()
 
-    inputs = {}
+    # Load and parse JSON file
+    try:
+        with open(args.json, "r", encoding="utf-8") as f:
+            recipes = json.load(f)
+    except FileNotFoundError:
+        print(f"Error: The file '{args.json}' was not found.")
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print(f"Error: Failed to parse JSON file: {e}")
+        sys.exit(1)
 
-    for input_str in args.input:
-        try:
-            item_name, qty_str = input_str.split(":")
-            qty = int(qty_str)
-            if qty <= 0:
-                raise ValueError
-            inputs[item_name.strip()] = qty
-        except ValueError:
+    if not isinstance(recipes, list):
+        print("Error: JSON root element must be an array of recipe objects.")
+        sys.exit(1)
+
+    # Fetch API data once for all recipes in the file
+    mapping_data, prices_data = fetch_api_data()
+    name_map = build_name_to_id_map(mapping_data)
+
+    # Process each recipe
+    for index, recipe in enumerate(recipes, start=1):
+        print(f"\nProcessing Recipe #{index}...")
+
+        raw_inputs = recipe.get("inputs", [])
+        output_data = recipe.get("output", {})
+
+        # Convert input list of objects into a dictionary of {item_name: quantity}
+        inputs_dict = {}
+        for inp in raw_inputs:
+            item_name = inp.get("item")
+            qty = inp.get("quantity")
+            if item_name and qty is not None:
+                inputs_dict[item_name.strip()] = int(qty)
+
+        output_item_name = output_data.get("item")
+        output_qty = output_data.get("quantity", 1)
+
+        if not inputs_dict or not output_item_name:
             print(
-                f"Error: Invalid input format '{input_str}'. Use 'ItemName:Quantity' with a positive integer."
+                f"Warning: Recipe #{index} is missing valid inputs or output. Skipping."
             )
-            sys.exit(1)
+            continue
 
-    output_item = args.output_item.strip()
-    output_qty = args.output_quantity
-
-    calculate_conversion_profit(
-        input_items_dict=inputs,
-        output_item_name=output_item,
-        quantity_output_produced=output_qty,
-    )
+        calculate_conversion_profit(
+            input_items_dict=inputs_dict,
+            output_item_name=output_item_name.strip(),
+            quantity_output_produced=int(output_qty),
+            mapping_data=mapping_data,
+            prices_data=prices_data,
+            name_map=name_map,
+        )
