@@ -58,6 +58,29 @@ def fetch_player_stats(username: str) -> dict:
     return stats
 
 
+def print_player_stats(username: str, stats: dict):
+    """Print the fetched player stats in a multi-column table format."""
+    print(f"\n=== STATS DUMP: {username.upper()} ===")
+    print("-" * 60)
+
+    # Exclude Overall for grid view to keep individual skills clean
+    skills_only = [s for s in SKILL_NAMES if s != "Overall"]
+
+    # Print 3 skills per row
+    cols = 3
+    for i in range(0, len(skills_only), cols):
+        row_skills = skills_only[i : i + cols]
+        row_str = ""
+        for skill in row_skills:
+            level = stats.get(skill.lower(), 1)
+            row_str += f"{skill:<13}: {level:<3} | "
+        print(row_str.rstrip(" |"))
+
+    print("-" * 60)
+    print(f"Overall Level : {stats.get('overall', 'N/A')}")
+    print("=" * 60)
+
+
 def fetch_wiki_money_methods(page_name: str) -> list:
     """Fetch money making methods from a given wiki page (P2P or F2P)."""
     wiki_api_url = "https://oldschool.runescape.wiki/api.php"
@@ -155,7 +178,6 @@ def chunk_list(lst: list, n: int):
 
 def filter_all_methods(methods: list, player_stats: dict) -> list:
     """Batch process methods and filter based on skill stats."""
-    # Deduplicate page titles before fetching
     all_titles = list({m["page_title"] for m in methods})
 
     BATCH_SIZE = 50
@@ -205,7 +227,8 @@ def main(username: str):
     if not stats:
         return
 
-    print(f"   -> Total Level: {stats.get('overall', 'N/A')}")
+    # Print formatted dump of player stats
+    print_player_stats(username, stats)
 
     print("\n2. Fetching P2P & F2P Money Making Guides...")
     p2p_methods = fetch_wiki_money_methods("Money_making_guide")
@@ -220,15 +243,11 @@ def main(username: str):
 
     # Free-to-play Table Output
     f2p_unlocked = [m for m in f2p_results if m["status"] == "Unlocked"]
-    # f2p_locked = [m for m in f2p_results if m["status"] != "Unlocked"]
     print_table("FREE-TO-PLAY (F2P) UNLOCKED METHODS", f2p_unlocked)
-    # if f2p_locked:
-    #     print_table("FREE-TO-PLAY (F2P) LOCKED METHODS", f2p_locked)
 
     # Members Table Output
     p2p_unlocked = [m for m in p2p_results if m["status"] == "Unlocked"]
-    # p2p_locked = [m for m in p2p_results if m["status"] != "Unlocked"]
-    print_table("PAY-TO-PLAY (P2P) UNLOCKED METHODS (TOP 20)", p2p_unlocked, limit=20)
+    print_table("PAY-TO-PLAY (P2P) UNLOCKED METHODS (TOP 20)", p2p_unlocked)
 
 
 if __name__ == "__main__":
