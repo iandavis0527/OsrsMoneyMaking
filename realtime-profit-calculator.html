@@ -67,7 +67,7 @@
               OSRS Profit & Conversion Hub
               <span
                 class="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 border border-slate-600 font-mono"
-                >v2.17</span
+                >v2.18</span
               >
               <span
                 id="api-status-badge"
@@ -76,8 +76,8 @@
               >
             </h1>
             <p class="text-xs text-slate-400">
-              Real-time GE (Auto-refresh 30s), Intellisense Autocomplete, 2% Tax
-              & Breakdowns
+              Real-time GE (Auto-refresh 30s), Intellisense Autocomplete, Sum of
+              1 Unit & Breakdowns
             </p>
           </div>
         </div>
@@ -361,7 +361,7 @@
       const VOLUME_24H_URL = "https://prices.runescape.wiki/api/v1/osrs/24h";
       const STORAGE_KEY = "osrs_profit_recipes_v3";
       const HEADERS = {
-        "User-Agent": "OSRSProfitWebApp/2.17 (contact@example.com)",
+        "User-Agent": "OSRSProfitWebApp/2.18 (contact@example.com)",
       };
 
       let itemMapping = [];
@@ -609,7 +609,7 @@
 
         const matches = uniqueItemNames
           .filter((name) => name.toLowerCase().includes(query))
-          .slice(0, 25); // limit recommendations for rendering speed
+          .slice(0, 25);
 
         if (matches.length === 0) {
           dropdown.classList.add("hidden");
@@ -809,6 +809,7 @@
 
         expandedRecipes.forEach((recipe) => {
           let totalInputCost = 0;
+          let sumOfOneUnitCost = 0;
           let minVolume = Infinity;
           const inputBreakdown = [];
 
@@ -821,6 +822,7 @@
             const { price, volume, id } = getItemData(inp.item, inMode);
             const totalCost = price * numQty;
             totalInputCost += totalCost;
+            sumOfOneUnitCost += price; // Sum of exactly 1 of each input item
 
             const scaledVolume = numQty > 0 ? volume / numQty : volume;
             if (scaledVolume < minVolume) minVolume = scaledVolume;
@@ -846,7 +848,6 @@
 
           let effectiveOutPrice = outPrice;
           if (outMode !== "alch" && outPrice > 0) {
-            // Updated to 2% tax deduction
             const taxPerItem = Math.min(Math.floor(outPrice * 0.02), 5000000);
             effectiveOutPrice = outPrice - taxPerItem;
           }
@@ -875,6 +876,7 @@
             rawOutputQtyStr,
             outputUnitPrice: effectiveOutPrice,
             totalInputCost,
+            sumOfOneUnitCost,
             totalOutputRevenue,
             totalProfit,
             profitPerUnit,
@@ -996,9 +998,13 @@
             "hover:bg-slate-700/30 transition border-b border-slate-700/50";
 
           row.innerHTML = `
-                    <td class="p-2.5 align-top min-w-[240px]">
+                    <td class="p-2.5 align-top min-w-[260px]">
                         <div class="bg-slate-900/50 p-1.5 rounded border border-slate-700/60 flex flex-col gap-1">
                             ${inputsHtml}
+                            <div class="text-xs pt-1 mt-0.5 border-t border-slate-700 flex justify-between font-semibold text-slate-300">
+                                <span>Sum of 1 Unit:</span>
+                                <span class="font-mono text-cyan-300">@ ${Math.round(res.sumOfOneUnitCost).toLocaleString()} gp</span>
+                            </div>
                             <div class="text-xs pt-1 mt-0.5 border-t border-slate-700 flex justify-between font-semibold text-slate-200">
                                 <span>Total Cost:</span>
                                 <span class="font-mono text-amber-400">${Math.round(res.totalInputCost).toLocaleString()} gp</span>
