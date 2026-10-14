@@ -142,7 +142,7 @@
             <code
               class="bg-slate-900 text-emerald-300 px-1 py-0.5 rounded border border-slate-700"
               >0.037</code
-            >.
+            >. Changes are saved automatically.
           </p>
 
           <div
@@ -332,8 +332,9 @@
       const LATEST_PRICES_URL =
         "https://prices.runescape.wiki/api/v1/osrs/latest";
       const VOLUME_24H_URL = "https://prices.runescape.wiki/api/v1/osrs/24h";
+      const STORAGE_KEY = "osrs_profit_recipes_v1";
       const HEADERS = {
-        "User-Agent": "OSRSProfitWebApp/2.6 (contact@example.com)",
+        "User-Agent": "OSRSProfitWebApp/2.7 (contact@example.com)",
       };
 
       let itemMapping = [];
@@ -348,8 +349,54 @@
       let currentSortAscending = false;
 
       window.addEventListener("DOMContentLoaded", () => {
+        loadSavedRecipes();
         initializeAppData();
       });
+
+      function loadSavedRecipes() {
+        try {
+          const saved = localStorage.getItem(STORAGE_KEY);
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              recipesData = parsed;
+              return;
+            }
+          }
+        } catch (e) {
+          console.error("Failed to load recipes from Local Storage:", e);
+        }
+        // Default presets if nothing in storage
+        recipesData = [
+          {
+            inputs: [
+              { item: "grimy (*)", quantity: "1" },
+              { item: "nature rune", quantity: "1/27" },
+            ],
+            output: { item: "(*)", quantity: "1" },
+            inputMode: "high",
+            outputMode: "high",
+          },
+          {
+            inputs: [
+              { item: "uncut dragonstone", quantity: "1" },
+              { item: "cosmic rune", quantity: "1/12" },
+            ],
+            output: { item: "dragonstone bolt tips", quantity: "1" },
+            inputMode: "high",
+            outputMode: "high",
+          },
+        ];
+        saveRecipesToStorage();
+      }
+
+      function saveRecipesToStorage() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(recipesData));
+        } catch (e) {
+          console.error("Failed to save recipes to Local Storage:", e);
+        }
+      }
 
       function parseQuantityExpression(inputStr) {
         if (typeof inputStr === "number") return inputStr;
@@ -413,42 +460,22 @@
           statusBadge.className =
             "text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
 
-          if (recipesData.length === 0) {
-            loadPresets();
-          } else {
-            runCalculation();
-          }
+          renderRecipes();
+          runCalculation();
         } catch (err) {
           console.error(err);
           statusBadge.textContent = "Connection Error (Using Fallback/Retry)";
           statusBadge.className =
             "text-xs px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30";
+          renderRecipes();
+          runCalculation();
         } finally {
           refreshIcon.classList.remove("animate-spin");
         }
       }
 
       function loadPresets() {
-        recipesData = [
-          {
-            inputs: [
-              { item: "grimy (*)", quantity: "1" },
-              { item: "nature rune", quantity: "1/27" },
-            ],
-            output: { item: "(*)", quantity: "1" },
-            inputMode: "high",
-            outputMode: "high",
-          },
-          {
-            inputs: [
-              { item: "uncut dragonstone", quantity: "1" },
-              { item: "cosmic rune", quantity: "1/12" },
-            ],
-            output: { item: "dragonstone bolt tips", quantity: "1" },
-            inputMode: "high",
-            outputMode: "high",
-          },
-        ];
+        loadSavedRecipes();
         renderRecipes();
         runCalculation();
       }
@@ -466,8 +493,8 @@
             .map(
               (inp, iIdx) => `
                     <div class="flex items-center gap-2">
-                        <input type="text" value="${inp.item}" placeholder="Input Item Name" onchange="updateRecipeInput(${rIdx}, ${iIdx}, 'item', this.value)" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
-                        <input type="text" value="${inp.quantity}" placeholder="Qty (e.g. 1/27)" onchange="updateRecipeInput(${rIdx}, ${iIdx}, 'quantity', this.value)" class="w-24 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 text-center font-mono">
+                        <input type="text" value="${inp.item}" placeholder="Input Item Name" oninput="updateRecipeInput(${rIdx}, ${iIdx}, 'item', this.value)" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+                        <input type="text" value="${inp.quantity}" placeholder="Qty (e.g. 1/27)" oninput="updateRecipeInput(${rIdx}, ${iIdx}, 'quantity', this.value)" class="w-24 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 text-center font-mono">
                         <button onclick="removeInput(${rIdx}, ${iIdx})" class="text-slate-500 hover:text-rose-400 p-1"><span class="material-icons-round text-base">remove_circle_outline</span></button>
                     </div>
                 `,
@@ -505,8 +532,8 @@
                     <div class="border-t border-slate-800 pt-2 flex flex-col gap-2">
                         <span class="text-[11px] uppercase tracking-wider text-slate-400 font-medium">Output Product</span>
                         <div class="flex items-center gap-2">
-                            <input type="text" value="${recipe.output.item}" placeholder="Output Item Name" onchange="updateRecipeOutput(${rIdx}, 'item', this.value)" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
-                            <input type="text" value="${recipe.output.quantity}" placeholder="Qty" onchange="updateRecipeOutput(${rIdx}, 'quantity', this.value)" class="w-24 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 text-center font-mono">
+                            <input type="text" value="${recipe.output.item}" placeholder="Output Item Name" oninput="updateRecipeOutput(${rIdx}, 'item', this.value)" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+                            <input type="text" value="${recipe.output.quantity}" placeholder="Qty" oninput="updateRecipeOutput(${rIdx}, 'quantity', this.value)" class="w-24 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 text-center font-mono">
                         </div>
                     </div>
                 `;
@@ -521,37 +548,45 @@
           inputMode: "high",
           outputMode: "high",
         });
+        saveRecipesToStorage();
         renderRecipes();
       }
 
       function removeRecipeCard(rIdx) {
         recipesData.splice(rIdx, 1);
+        saveRecipesToStorage();
         renderRecipes();
         runCalculation();
       }
 
       function addInput(rIdx) {
         recipesData[rIdx].inputs.push({ item: "", quantity: "1" });
+        saveRecipesToStorage();
         renderRecipes();
       }
 
       function removeInput(rIdx, iIdx) {
         if (recipesData[rIdx].inputs.length > 1) {
           recipesData[rIdx].inputs.splice(iIdx, 1);
+          saveRecipesToStorage();
           renderRecipes();
         }
       }
 
       function updateRecipeInput(rIdx, iIdx, field, val) {
         recipesData[rIdx].inputs[iIdx][field] = val;
+        saveRecipesToStorage();
       }
 
       function updateRecipeOutput(rIdx, field, val) {
         recipesData[rIdx].output[field] = val;
+        saveRecipesToStorage();
       }
 
       function updateRecipeMode(rIdx, modeField, val) {
         recipesData[rIdx][modeField] = val;
+        saveRecipesToStorage();
+        runCalculation();
       }
 
       function expandRecipes(rawRecipes) {
