@@ -67,7 +67,7 @@
               OSRS Profit & Conversion Hub
               <span
                 class="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 border border-slate-600 font-mono"
-                >v2.18</span
+                >v2.19</span
               >
               <span
                 id="api-status-badge"
@@ -76,23 +76,45 @@
               >
             </h1>
             <p class="text-xs text-slate-400">
-              Real-time GE (Auto-refresh 30s), Intellisense Autocomplete, Sum of
-              1 Unit & Breakdowns
+              Real-time GE, JSON Backup/Restore, Autocomplete, 2% Tax & Itemized
+              Breakdowns
             </p>
           </div>
         </div>
 
-        <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+        <div
+          class="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap"
+        >
+          <button
+            onclick="exportRecipesJSON()"
+            class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 border border-slate-600"
+          >
+            <span class="material-icons-round text-sm">download</span> Export
+            JSON
+          </button>
+          <button
+            onclick="triggerImportJSON()"
+            class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 border border-slate-600"
+          >
+            <span class="material-icons-round text-sm">upload</span> Import JSON
+          </button>
+          <input
+            type="file"
+            id="import-file-input"
+            accept=".json"
+            onchange="importRecipesJSON(event)"
+            class="hidden"
+          />
           <button
             onclick="loadPresets()"
-            class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium px-3 py-1.5 rounded-lg transition flex items-center gap-2 border border-slate-600"
+            class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 border border-slate-600"
           >
             <span class="material-icons-round text-sm">playlist_add</span> Load
             Presets
           </button>
           <button
             onclick="initializeAppData()"
-            class="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-2 material-shadow"
+            class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 material-shadow"
           >
             <span
               class="material-icons-round text-sm animate-spin"
@@ -361,7 +383,7 @@
       const VOLUME_24H_URL = "https://prices.runescape.wiki/api/v1/osrs/24h";
       const STORAGE_KEY = "osrs_profit_recipes_v3";
       const HEADERS = {
-        "User-Agent": "OSRSProfitWebApp/2.18 (contact@example.com)",
+        "User-Agent": "OSRSProfitWebApp/2.19 (contact@example.com)",
       };
 
       let itemMapping = [];
@@ -428,6 +450,50 @@
         } catch (e) {
           console.error("Failed to save recipes to Local Storage:", e);
         }
+      }
+
+      function exportRecipesJSON() {
+        const dataStr =
+          "data:text/json;charset=utf-8," +
+          encodeURIComponent(JSON.stringify(recipesData, null, 2));
+        const downloadAnchor = document.createElement("a");
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", "osrs_profit_recipes.json");
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+      }
+
+      function triggerImportJSON() {
+        document.getElementById("import-file-input").click();
+      }
+
+      function importRecipesJSON(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          try {
+            const imported = JSON.parse(e.target.result);
+            if (Array.isArray(imported)) {
+              recipesData = imported;
+              saveRecipesToStorage();
+              renderRecipes();
+              runCalculation();
+              alert("Recipes successfully imported!");
+            } else {
+              alert(
+                "Invalid JSON format: Root element must be an array of recipes.",
+              );
+            }
+          } catch (err) {
+            console.error("Failed to parse JSON file:", err);
+            alert("Error parsing JSON file. Please ensure it is valid.");
+          }
+          event.target.value = ""; // Reset file input
+        };
+        reader.readAsText(file);
       }
 
       function parseQuantityExpression(inputStr) {
@@ -822,7 +888,7 @@
             const { price, volume, id } = getItemData(inp.item, inMode);
             const totalCost = price * numQty;
             totalInputCost += totalCost;
-            sumOfOneUnitCost += price; // Sum of exactly 1 of each input item
+            sumOfOneUnitCost += price;
 
             const scaledVolume = numQty > 0 ? volume / numQty : volume;
             if (scaledVolume < minVolume) minVolume = scaledVolume;
