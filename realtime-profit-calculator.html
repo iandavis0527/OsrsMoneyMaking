@@ -264,6 +264,16 @@
                     ></span>
                   </th>
                   <th
+                    onclick="sortTable('totalOutputRevenue')"
+                    class="p-3 cursor-pointer hover:text-white transition"
+                  >
+                    Output Value
+                    <span
+                      id="sort-totalOutputRevenue"
+                      class="text-emerald-400"
+                    ></span>
+                  </th>
+                  <th
                     onclick="sortTable('profitPerUnit')"
                     class="p-3 cursor-pointer hover:text-white transition"
                   >
@@ -300,7 +310,7 @@
                 class="divide-y divide-slate-700/60 text-sm"
               >
                 <tr>
-                  <td colspan="6" class="p-8 text-center text-slate-500">
+                  <td colspan="7" class="p-8 text-center text-slate-500">
                     <span
                       class="material-icons-round text-3xl mb-2 block text-slate-600"
                       >inbox</span
@@ -323,7 +333,7 @@
         "https://prices.runescape.wiki/api/v1/osrs/latest";
       const VOLUME_24H_URL = "https://prices.runescape.wiki/api/v1/osrs/24h";
       const HEADERS = {
-        "User-Agent": "OSRSProfitWebApp/2.5 (contact@example.com)",
+        "User-Agent": "OSRSProfitWebApp/2.6 (contact@example.com)",
       };
 
       let itemMapping = [];
@@ -741,6 +751,7 @@
         [
           "outputName",
           "totalInputCost",
+          "totalOutputRevenue",
           "profitPerUnit",
           "totalProfit",
           "minVolume",
@@ -771,7 +782,7 @@
             : 0;
 
         if (results.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-500">No matching recipes or items found.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-500">No matching recipes or items found.</td></tr>`;
           updateStats(totalRecipesCount, profitableCount, maxProfitUnit);
           return;
         }
@@ -800,7 +811,8 @@
                         <div class="font-medium text-white">${res.outputName}</div>
                         <div class="text-xs text-slate-400">Qty produced: ${res.outputQty}</div>
                     </td>
-                    <td class="p-3 text-slate-300">${res.totalInputCost.toLocaleString()} gp</td>
+                    <td class="p-3 text-slate-300">${Math.round(res.totalInputCost).toLocaleString()} gp</td>
+                    <td class="p-3 text-slate-300">${Math.round(res.totalOutputRevenue).toLocaleString()} gp</td>
                     <td class="p-3 ${profitClass}">${Math.round(res.profitPerUnit).toLocaleString()} gp</td>
                     <td class="p-3 text-slate-300">${Math.round(res.totalProfit).toLocaleString()} gp</td>
                     <td class="p-3 ${volClass}">${volText}</td>
