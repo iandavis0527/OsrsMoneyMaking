@@ -67,7 +67,7 @@
               OSRS Profit & Conversion Hub
               <span
                 class="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 border border-slate-600 font-mono"
-                >v2.15</span
+                >v2.16</span
               >
               <span
                 id="api-status-badge"
@@ -76,8 +76,8 @@
               >
             </h1>
             <p class="text-xs text-slate-400">
-              Real-time GE, Unitized Input/Output Breakdowns, GP/hr & Liquidity
-              analytics
+              Real-time GE (Auto-refreshes every 30s), Itemized Breakdowns,
+              GP/hr & Liquidity analytics
             </p>
           </div>
         </div>
@@ -357,11 +357,11 @@
     <script>
       const MAPPING_URL = "https://prices.runescape.wiki/api/v1/osrs/mapping";
       const LATEST_PRICES_URL =
-        "https://prices.runescape.wiki/api/v1/osrs/latest";
-      const VOLUME_24H_URL = "https://prices.runescape.wiki/api/v1/osrs/24h";
+        "https://prices.runescape.wiki/api/v2/osrs/latest";
+      const VOLUME_24H_URL = "https://prices.runescape.wiki/api/v2/osrs/24h";
       const STORAGE_KEY = "osrs_profit_recipes_v3";
       const HEADERS = {
-        "User-Agent": "OSRSProfitWebApp/2.15 (contact@example.com)",
+        "User-Agent": "OSRSProfitWebApp/2.16 (contact@example.com)",
       };
 
       let itemMapping = [];
@@ -378,6 +378,8 @@
       window.addEventListener("DOMContentLoaded", () => {
         loadSavedRecipes();
         initializeAppData();
+        // Setup automatic price refresh every 30 seconds
+        setInterval(initializeAppData, 30000);
       });
 
       function loadSavedRecipes() {
