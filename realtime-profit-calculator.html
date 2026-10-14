@@ -67,7 +67,7 @@
               OSRS Profit & Conversion Hub
               <span
                 class="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 border border-slate-600 font-mono"
-                >v2.16</span
+                >v2.17</span
               >
               <span
                 id="api-status-badge"
@@ -76,8 +76,8 @@
               >
             </h1>
             <p class="text-xs text-slate-400">
-              Real-time GE (Auto-refreshes every 30s), Itemized Breakdowns,
-              GP/hr & Liquidity analytics
+              Real-time GE (Auto-refresh 30s), Intellisense Autocomplete, 2% Tax
+              & Breakdowns
             </p>
           </div>
         </div>
@@ -357,11 +357,11 @@
     <script>
       const MAPPING_URL = "https://prices.runescape.wiki/api/v1/osrs/mapping";
       const LATEST_PRICES_URL =
-        "https://prices.runescape.wiki/api/v2/osrs/latest";
-      const VOLUME_24H_URL = "https://prices.runescape.wiki/api/v2/osrs/24h";
+        "https://prices.runescape.wiki/api/v1/osrs/latest";
+      const VOLUME_24H_URL = "https://prices.runescape.wiki/api/v1/osrs/24h";
       const STORAGE_KEY = "osrs_profit_recipes_v3";
       const HEADERS = {
-        "User-Agent": "OSRSProfitWebApp/2.16 (contact@example.com)",
+        "User-Agent": "OSRSProfitWebApp/2.17 (contact@example.com)",
       };
 
       let itemMapping = [];
@@ -369,6 +369,7 @@
       let itemVolumes = {};
       let nameToIdMap = {};
       let originalNamesMap = {};
+      let uniqueItemNames = [];
       let recipesData = [];
       let lastResults = [];
 
@@ -378,7 +379,6 @@
       window.addEventListener("DOMContentLoaded", () => {
         loadSavedRecipes();
         initializeAppData();
-        // Setup automatic price refresh every 30 seconds
         setInterval(initializeAppData, 30000);
       });
 
@@ -478,6 +478,7 @@
 
           nameToIdMap = {};
           originalNamesMap = {};
+          uniqueItemNames = [];
           itemMapping.forEach((item) => {
             const origName = item.name || "";
             const lowName = origName.toLowerCase();
@@ -485,6 +486,7 @@
             if (lowName && id !== undefined) {
               nameToIdMap[lowName] = id;
               originalNamesMap[lowName] = origName;
+              uniqueItemNames.push(origName);
             }
           });
 
@@ -524,8 +526,11 @@
           let inputsHtml = recipe.inputs
             .map(
               (inp, iIdx) => `
-                    <div class="flex items-center gap-1.5">
-                        <input type="text" value="${inp.item}" placeholder="Input Item Name" oninput="updateRecipeInput(${rIdx}, ${iIdx}, 'item', this.value)" class="flex-1 bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+                    <div class="flex items-center gap-1.5 relative">
+                        <div class="flex-1 relative">
+                            <input type="text" value="${inp.item}" placeholder="Input Item Name" oninput="handleAutocompleteInput(event, ${rIdx}, 'input', ${iIdx})" onfocus="handleAutocompleteInput(event, ${rIdx}, 'input', ${iIdx})" onblur="hideAutocomplete(event)" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 autocomplete-input">
+                            <div class="autocomplete-dropdown absolute left-0 right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 max-h-48 overflow-y-auto hidden"></div>
+                        </div>
                         <input type="text" value="${inp.quantity}" placeholder="Qty (e.g. 1/27)" oninput="updateRecipeInput(${rIdx}, ${iIdx}, 'quantity', this.value)" class="w-20 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 text-center font-mono">
                         <button onclick="removeInput(${rIdx}, ${iIdx})" class="text-slate-500 hover:text-rose-400 p-0.5"><span class="material-icons-round text-base">remove_circle_outline</span></button>
                     </div>
@@ -573,14 +578,84 @@
                     </div>
                     <div class="border-t border-slate-800 pt-2 flex flex-col gap-1.5">
                         <span class="text-[11px] uppercase tracking-wider text-slate-400 font-medium">Output Product</span>
-                        <div class="flex items-center gap-1.5">
-                            <input type="text" value="${recipe.output.item}" placeholder="Output Item Name" oninput="updateRecipeOutput(${rIdx}, 'item', this.value)" class="flex-1 bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+                        <div class="flex items-center gap-1.5 relative">
+                            <div class="flex-1 relative">
+                                <input type="text" value="${recipe.output.item}" placeholder="Output Item Name" oninput="handleAutocompleteInput(event, ${rIdx}, 'output')" onfocus="handleAutocompleteInput(event, ${rIdx}, 'output')" onblur="hideAutocomplete(event)" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 autocomplete-input">
+                                <div class="autocomplete-dropdown absolute left-0 right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 max-h-48 overflow-y-auto hidden"></div>
+                            </div>
                             <input type="text" value="${recipe.output.quantity}" placeholder="Qty" oninput="updateRecipeOutput(${rIdx}, 'quantity', this.value)" class="w-20 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 text-center font-mono">
                         </div>
                     </div>
                 `;
           container.appendChild(card);
         });
+      }
+
+      function handleAutocompleteInput(event, rIdx, type, iIdx = null) {
+        const inputEl = event.target;
+        const query = inputEl.value.toLowerCase().trim();
+        const dropdown = inputEl.nextElementSibling;
+
+        if (type === "input") {
+          updateRecipeInput(rIdx, iIdx, "item", inputEl.value);
+        } else {
+          updateRecipeOutput(rIdx, "item", inputEl.value);
+        }
+
+        if (!query && uniqueItemNames.length === 0) {
+          dropdown.classList.add("hidden");
+          return;
+        }
+
+        const matches = uniqueItemNames
+          .filter((name) => name.toLowerCase().includes(query))
+          .slice(0, 25); // limit recommendations for rendering speed
+
+        if (matches.length === 0) {
+          dropdown.classList.add("hidden");
+          return;
+        }
+
+        dropdown.innerHTML = matches
+          .map(
+            (name) => `
+          <div class="px-3 py-1.5 text-xs text-slate-200 hover:bg-emerald-600 hover:text-white cursor-pointer transition select-none" onmousedown="selectAutocompleteItem(event, ${rIdx}, '${type}', ${iIdx !== null ? iIdx : "null"}, '${name.replace(/'/g, "\\'")}')">
+            ${name}
+          </div>
+        `,
+          )
+          .join("");
+
+        dropdown.classList.remove("hidden");
+      }
+
+      function selectAutocompleteItem(event, rIdx, type, iIdx, itemName) {
+        event.preventDefault();
+        const container = event.target.closest(".relative");
+        const inputEl = container.querySelector(".autocomplete-input");
+        const dropdown = container.querySelector(".autocomplete-dropdown");
+
+        inputEl.value = itemName;
+        dropdown.classList.add("hidden");
+
+        if (type === "input") {
+          updateRecipeInput(rIdx, iIdx, "item", itemName);
+        } else {
+          updateRecipeOutput(rIdx, "item", itemName);
+        }
+        runCalculation();
+      }
+
+      function hideAutocomplete(event) {
+        setTimeout(() => {
+          const dropdown = event.target.nextElementSibling;
+          if (
+            dropdown &&
+            dropdown.classList.contains("autocomplete-dropdown")
+          ) {
+            dropdown.classList.add("hidden");
+          }
+        }, 200);
       }
 
       function addNewRecipeCard() {
@@ -771,6 +846,7 @@
 
           let effectiveOutPrice = outPrice;
           if (outMode !== "alch" && outPrice > 0) {
+            // Updated to 2% tax deduction
             const taxPerItem = Math.min(Math.floor(outPrice * 0.02), 5000000);
             effectiveOutPrice = outPrice - taxPerItem;
           }
