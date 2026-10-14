@@ -52,7 +52,7 @@
       class="bg-slate-800 border-b border-slate-700 sticky top-0 z-50 material-shadow"
     >
       <div
-        class="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4"
+        class="w-full px-4 py-3 flex flex-col sm:flex-row justify-between items-center gap-4"
       >
         <div class="flex items-center gap-3">
           <div
@@ -67,7 +67,7 @@
               OSRS Profit & Conversion Hub
               <span
                 class="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 border border-slate-600 font-mono"
-                >v2.10</span
+                >v2.15</span
               >
               <span
                 id="api-status-badge"
@@ -76,7 +76,8 @@
               >
             </h1>
             <p class="text-xs text-slate-400">
-              Real-time GE, Fractional Ingredients, XP/hr & Liquidity analytics
+              Real-time GE, Unitized Input/Output Breakdowns, GP/hr & Liquidity
+              analytics
             </p>
           </div>
         </div>
@@ -84,14 +85,14 @@
         <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
           <button
             onclick="loadPresets()"
-            class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium px-4 py-2 rounded-lg transition flex items-center gap-2 border border-slate-600"
+            class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium px-3 py-1.5 rounded-lg transition flex items-center gap-2 border border-slate-600"
           >
             <span class="material-icons-round text-sm">playlist_add</span> Load
             Presets
           </button>
           <button
             onclick="initializeAppData()"
-            class="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition flex items-center gap-2 material-shadow"
+            class="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-2 material-shadow"
           >
             <span
               class="material-icons-round text-sm animate-spin"
@@ -104,16 +105,45 @@
       </div>
     </header>
 
-    <!-- Main Content Layout -->
+    <!-- Main Content Layout (Widescreen layout maximizing space) -->
     <main
-      class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 overflow-y-auto"
+      class="flex-1 w-full max-w-[99%] 2xl:max-w-[98%] mx-auto p-2 sm:p-3 grid grid-cols-1 lg:grid-cols-12 gap-4 overflow-y-auto"
     >
-      <!-- Left Column: Recipe Builder (5 Cols) -->
-      <div class="lg:col-span-5 flex flex-col gap-6">
+      <!-- Left Column: Global Settings & Recipe Builder (4 Cols for compact profile) -->
+      <div class="lg:col-span-4 flex flex-col gap-4">
+        <!-- Global Settings Card -->
         <div
-          class="bg-slate-800 rounded-xl p-5 border border-slate-700 material-card flex-1 flex flex-col"
+          class="bg-slate-800 rounded-xl p-4 border border-slate-700 material-card"
         >
-          <div class="flex justify-between items-center mb-4">
+          <h2
+            class="text-sm font-semibold uppercase tracking-wider text-emerald-400 mb-2 flex items-center gap-2"
+          >
+            <span class="material-icons-round text-base">timer</span> Global
+            Workflow Settings
+          </h2>
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1"
+              >Bank Restock Time / Inventory (seconds)</label
+            >
+            <input
+              type="number"
+              step="0.1"
+              min="0"
+              id="global-bank-delay"
+              value="5"
+              oninput="runCalculation()"
+              class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 font-mono"
+            />
+            <p class="text-[11px] text-slate-400 mt-1">
+              Time sink added per 27-item inventory restock cycle.
+            </p>
+          </div>
+        </div>
+
+        <div
+          class="bg-slate-800 rounded-xl p-4 border border-slate-700 material-card flex-1 flex flex-col"
+        >
+          <div class="flex justify-between items-center mb-3">
             <h2
               class="text-sm font-semibold uppercase tracking-wider text-emerald-400 flex items-center gap-2"
             >
@@ -122,38 +152,37 @@
             </h2>
             <button
               onclick="addNewRecipeCard()"
-              class="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 text-xs font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1 border border-emerald-500/30"
+              class="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 text-xs font-semibold px-2.5 py-1 rounded-lg transition flex items-center gap-1 border border-emerald-500/30"
             >
               <span class="material-icons-round text-sm">add</span> Add
               Blueprint
             </button>
           </div>
 
-          <p class="text-xs text-slate-400 mb-4">
+          <p class="text-xs text-slate-400 mb-3">
             Use
             <code
-              class="bg-slate-900 text-emerald-300 px-1.5 py-0.5 rounded border border-slate-700"
+              class="bg-slate-900 text-emerald-300 px-1 py-0.5 rounded border border-slate-700"
               >(*)</code
             >
-            as a wildcard (e.g., <span class="text-slate-300">grimy (*)</span>).
-            Quantities accept fractions like
+            as a wildcard. Quantities accept fractions like
             <code
               class="bg-slate-900 text-emerald-300 px-1 py-0.5 rounded border border-slate-700"
               >1/27</code
-            >. Data saves automatically.
+            >.
           </p>
 
           <div
             id="recipes-container"
-            class="flex flex-col gap-4 overflow-y-auto max-h-[600px] pr-1"
+            class="flex flex-col gap-3 overflow-y-auto max-h-[calc(100vh-320px)] pr-1"
           >
             <!-- Dynamic Recipe Cards -->
           </div>
 
-          <div class="mt-4 pt-4 border-t border-slate-700 flex justify-end">
+          <div class="mt-3 pt-3 border-t border-slate-700 flex justify-end">
             <button
               onclick="runCalculation()"
-              class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 px-4 rounded-lg transition flex items-center justify-center gap-2 material-shadow text-sm"
+              class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2 px-4 rounded-lg transition flex items-center justify-center gap-2 material-shadow text-sm"
             >
               <span class="material-icons-round text-base">calculate</span>
               Calculate Margins
@@ -162,39 +191,39 @@
         </div>
       </div>
 
-      <!-- Right Column: Results Dashboard (7 Cols) -->
-      <div class="lg:col-span-7 flex flex-col gap-6">
+      <!-- Right Column: Results Dashboard (8 Cols to maximize display width) -->
+      <div class="lg:col-span-8 flex flex-col gap-4">
         <!-- Summary Stats Bar -->
-        <div class="grid grid-cols-3 gap-4">
+        <div class="grid grid-cols-3 gap-3">
           <div
-            class="bg-slate-800 p-4 rounded-xl border border-slate-700 material-card"
+            class="bg-slate-800 p-3 rounded-xl border border-slate-700 material-card"
           >
             <span class="text-xs text-slate-400 block mb-1"
               >Recipes Evaluated</span
             >
-            <span id="stat-total-recipes" class="text-xl font-bold text-white"
+            <span id="stat-total-recipes" class="text-lg font-bold text-white"
               >0</span
             >
           </div>
           <div
-            class="bg-slate-800 p-4 rounded-xl border border-slate-700 material-card"
+            class="bg-slate-800 p-3 rounded-xl border border-slate-700 material-card"
           >
             <span class="text-xs text-slate-400 block mb-1"
               >Profitable Items</span
             >
             <span
               id="stat-profitable-count"
-              class="text-xl font-bold text-emerald-400"
+              class="text-lg font-bold text-emerald-400"
               >0</span
             >
           </div>
           <div
-            class="bg-slate-800 p-4 rounded-xl border border-slate-700 material-card"
+            class="bg-slate-800 p-3 rounded-xl border border-slate-700 material-card"
           >
             <span class="text-xs text-slate-400 block mb-1"
               >Max Profit / Unit</span
             >
-            <span id="stat-max-profit" class="text-xl font-bold text-cyan-400"
+            <span id="stat-max-profit" class="text-lg font-bold text-cyan-400"
               >0 gp</span
             >
           </div>
@@ -205,7 +234,7 @@
           class="bg-slate-800 rounded-xl border border-slate-700 material-card flex-1 flex flex-col overflow-hidden"
         >
           <div
-            class="p-4 border-b border-slate-700 flex flex-col sm:flex-row justify-between items-center gap-3 bg-slate-800/80"
+            class="p-3 border-b border-slate-700 flex flex-col sm:flex-row justify-between items-center gap-3 bg-slate-800/80"
           >
             <h2
               class="text-sm font-semibold uppercase tracking-wider text-emerald-400 flex items-center gap-2"
@@ -215,10 +244,10 @@
             </h2>
 
             <div
-              class="flex items-center gap-3 w-full sm:w-auto justify-end flex-wrap"
+              class="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap"
             >
               <label
-                class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer select-none bg-slate-900 border border-slate-700 px-3 py-1.5 rounded-lg"
+                class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer select-none bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-lg"
               >
                 <input
                   type="checkbox"
@@ -233,7 +262,7 @@
                 id="result-search"
                 oninput="runCalculation()"
                 placeholder="Filter results..."
-                class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
+                class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
               />
             </div>
           </div>
@@ -245,17 +274,10 @@
                   class="bg-slate-900/60 text-slate-400 text-xs font-semibold uppercase tracking-wider border-b border-slate-700 select-none"
                 >
                   <th
-                    onclick="sortTable('outputName')"
-                    class="p-3 cursor-pointer hover:text-white transition"
-                  >
-                    Output Item
-                    <span id="sort-outputName" class="text-emerald-400"></span>
-                  </th>
-                  <th
                     onclick="sortTable('totalInputCost')"
-                    class="p-3 cursor-pointer hover:text-white transition"
+                    class="p-2.5 cursor-pointer hover:text-white transition"
                   >
-                    Input Cost
+                    Input Breakdown & Unit Prices
                     <span
                       id="sort-totalInputCost"
                       class="text-emerald-400"
@@ -263,9 +285,9 @@
                   </th>
                   <th
                     onclick="sortTable('totalOutputRevenue')"
-                    class="p-3 cursor-pointer hover:text-white transition"
+                    class="p-2.5 cursor-pointer hover:text-white transition"
                   >
-                    Output Value
+                    Output Breakdown & Unit Prices
                     <span
                       id="sort-totalOutputRevenue"
                       class="text-emerald-400"
@@ -273,7 +295,7 @@
                   </th>
                   <th
                     onclick="sortTable('profitPerUnit')"
-                    class="p-3 cursor-pointer hover:text-white transition"
+                    class="p-2.5 cursor-pointer hover:text-white transition"
                   >
                     Profit / Unit
                     <span id="sort-profitPerUnit" class="text-emerald-400"
@@ -281,22 +303,29 @@
                     >
                   </th>
                   <th
-                    onclick="sortTable('xpPerHour')"
-                    class="p-3 cursor-pointer hover:text-white transition"
+                    onclick="sortTable('totalProfit')"
+                    class="p-2.5 cursor-pointer hover:text-white transition"
                   >
-                    XP / Hour
-                    <span id="sort-xpPerHour" class="text-emerald-400"></span>
+                    Batch Profit
+                    <span id="sort-totalProfit" class="text-emerald-400"></span>
+                  </th>
+                  <th
+                    onclick="sortTable('gpPerHour')"
+                    class="p-2.5 cursor-pointer hover:text-white transition"
+                  >
+                    GP / Hour
+                    <span id="sort-gpPerHour" class="text-emerald-400"></span>
                   </th>
                   <th
                     onclick="sortTable('minVolume')"
-                    class="p-3 cursor-pointer hover:text-white transition"
+                    class="p-2.5 cursor-pointer hover:text-white transition"
                   >
                     24h Min Vol
                     <span id="sort-minVolume" class="text-emerald-400"></span>
                   </th>
                   <th
                     onclick="sortTable('marginPct')"
-                    class="p-3 cursor-pointer hover:text-white transition"
+                    class="p-2.5 cursor-pointer hover:text-white transition"
                   >
                     Margin
                     <span id="sort-marginPct" class="text-emerald-400"></span>
@@ -308,7 +337,7 @@
                 class="divide-y divide-slate-700/60 text-sm"
               >
                 <tr>
-                  <td colspan="6" class="p-8 text-center text-slate-500">
+                  <td colspan="7" class="p-8 text-center text-slate-500">
                     <span
                       class="material-icons-round text-3xl mb-2 block text-slate-600"
                       >inbox</span
@@ -330,9 +359,9 @@
       const LATEST_PRICES_URL =
         "https://prices.runescape.wiki/api/v1/osrs/latest";
       const VOLUME_24H_URL = "https://prices.runescape.wiki/api/v1/osrs/24h";
-      const STORAGE_KEY = "osrs_profit_recipes_v2";
+      const STORAGE_KEY = "osrs_profit_recipes_v3";
       const HEADERS = {
-        "User-Agent": "OSRSProfitWebApp/2.10 (contact@example.com)",
+        "User-Agent": "OSRSProfitWebApp/2.15 (contact@example.com)",
       };
 
       let itemMapping = [];
@@ -488,15 +517,15 @@
         recipesData.forEach((recipe, rIdx) => {
           const card = document.createElement("div");
           card.className =
-            "bg-slate-900/60 p-4 rounded-xl border border-slate-700 flex flex-col gap-3 relative";
+            "bg-slate-900/60 p-3 rounded-xl border border-slate-700 flex flex-col gap-2.5 relative";
 
           let inputsHtml = recipe.inputs
             .map(
               (inp, iIdx) => `
-                    <div class="flex items-center gap-2">
-                        <input type="text" value="${inp.item}" placeholder="Input Item Name" oninput="updateRecipeInput(${rIdx}, ${iIdx}, 'item', this.value)" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
-                        <input type="text" value="${inp.quantity}" placeholder="Qty (e.g. 1/27)" oninput="updateRecipeInput(${rIdx}, ${iIdx}, 'quantity', this.value)" class="w-24 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 text-center font-mono">
-                        <button onclick="removeInput(${rIdx}, ${iIdx})" class="text-slate-500 hover:text-rose-400 p-1"><span class="material-icons-round text-base">remove_circle_outline</span></button>
+                    <div class="flex items-center gap-1.5">
+                        <input type="text" value="${inp.item}" placeholder="Input Item Name" oninput="updateRecipeInput(${rIdx}, ${iIdx}, 'item', this.value)" class="flex-1 bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+                        <input type="text" value="${inp.quantity}" placeholder="Qty (e.g. 1/27)" oninput="updateRecipeInput(${rIdx}, ${iIdx}, 'quantity', this.value)" class="w-20 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 text-center font-mono">
+                        <button onclick="removeInput(${rIdx}, ${iIdx})" class="text-slate-500 hover:text-rose-400 p-0.5"><span class="material-icons-round text-base">remove_circle_outline</span></button>
                     </div>
                 `,
             )
@@ -507,9 +536,9 @@
                         <span>Blueprint #${rIdx + 1}</span>
                         <button onclick="removeRecipeCard(${rIdx})" class="text-rose-400/80 hover:text-rose-400 flex items-center gap-0.5"><span class="material-icons-round text-sm">delete</span> Remove</button>
                     </div>
-                    <div class="grid grid-cols-2 gap-2 bg-slate-900/40 p-2.5 rounded-lg border border-slate-800">
+                    <div class="grid grid-cols-2 gap-2 bg-slate-900/40 p-2 rounded-lg border border-slate-800">
                         <div>
-                            <label class="block text-[10px] text-slate-400 mb-1">Input Source</label>
+                            <label class="block text-[10px] text-slate-400 mb-0.5">Input Source</label>
                             <select onchange="updateRecipeMeta(${rIdx}, 'inputMode', this.value)" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
                                 <option value="high" ${recipe.inputMode === "high" ? "selected" : ""}>GE High (Buy)</option>
                                 <option value="low" ${recipe.inputMode === "low" ? "selected" : ""}>GE Low (Sell)</option>
@@ -517,7 +546,7 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-[10px] text-slate-400 mb-1">Output Source</label>
+                            <label class="block text-[10px] text-slate-400 mb-0.5">Output Source</label>
                             <select onchange="updateRecipeMeta(${rIdx}, 'outputMode', this.value)" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
                                 <option value="high" ${recipe.outputMode === "high" ? "selected" : ""}>GE High (Buy)</option>
                                 <option value="low" ${recipe.outputMode === "low" ? "selected" : ""}>GE Low (Sell)</option>
@@ -525,26 +554,26 @@
                             </select>
                         </div>
                     </div>
-                    <div class="grid grid-cols-2 gap-2 bg-slate-900/40 p-2.5 rounded-lg border border-slate-800">
+                    <div class="grid grid-cols-2 gap-2 bg-slate-900/40 p-2 rounded-lg border border-slate-800">
                         <div>
-                            <label class="block text-[10px] text-slate-400 mb-1">Ticks (0.6s)</label>
+                            <label class="block text-[10px] text-slate-400 mb-0.5">Ticks (0.6s)</label>
                             <input type="number" min="1" value="${recipe.ticks !== undefined ? recipe.ticks : 1}" oninput="updateRecipeMeta(${rIdx}, 'ticks', parseInt(this.value) || 1)" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 font-mono">
                         </div>
                         <div>
-                            <label class="block text-[10px] text-slate-400 mb-1">XP / Action</label>
+                            <label class="block text-[10px] text-slate-400 mb-0.5">XP / Action</label>
                             <input type="number" step="0.1" min="0" value="${recipe.xpPerAction !== undefined ? recipe.xpPerAction : 0}" oninput="updateRecipeMeta(${rIdx}, 'xpPerAction', parseFloat(this.value) || 0)" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 font-mono">
                         </div>
                     </div>
-                    <div class="flex flex-col gap-2">
+                    <div class="flex flex-col gap-1.5">
                         <span class="text-[11px] uppercase tracking-wider text-slate-400 font-medium">Inputs</span>
                         ${inputsHtml}
-                        <button onclick="addInput(${rIdx})" class="self-start text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1 mt-1"><span class="material-icons-round text-sm">add</span> Add Input Component</button>
+                        <button onclick="addInput(${rIdx})" class="self-start text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1 mt-0.5"><span class="material-icons-round text-sm">add</span> Add Input Component</button>
                     </div>
-                    <div class="border-t border-slate-800 pt-2 flex flex-col gap-2">
+                    <div class="border-t border-slate-800 pt-2 flex flex-col gap-1.5">
                         <span class="text-[11px] uppercase tracking-wider text-slate-400 font-medium">Output Product</span>
-                        <div class="flex items-center gap-2">
-                            <input type="text" value="${recipe.output.item}" placeholder="Output Item Name" oninput="updateRecipeOutput(${rIdx}, 'item', this.value)" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
-                            <input type="text" value="${recipe.output.quantity}" placeholder="Qty" oninput="updateRecipeOutput(${rIdx}, 'quantity', this.value)" class="w-24 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 text-center font-mono">
+                        <div class="flex items-center gap-1.5">
+                            <input type="text" value="${recipe.output.item}" placeholder="Output Item Name" oninput="updateRecipeOutput(${rIdx}, 'item', this.value)" class="flex-1 bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+                            <input type="text" value="${recipe.output.quantity}" placeholder="Qty" oninput="updateRecipeOutput(${rIdx}, 'quantity', this.value)" class="w-20 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 text-center font-mono">
                         </div>
                     </div>
                 `;
@@ -695,6 +724,9 @@
           .getElementById("result-search")
           .value.toLowerCase();
 
+        const bankDelaySec =
+          parseFloat(document.getElementById("global-bank-delay").value) || 0;
+
         const expandedRecipes = expandRecipes(recipesData);
         lastResults = [];
 
@@ -706,7 +738,6 @@
           const inMode = recipe.inputMode || "high";
           const outMode = recipe.outputMode || "high";
           const ticks = recipe.ticks && recipe.ticks > 0 ? recipe.ticks : 1;
-          const xpPerAction = recipe.xpPerAction || 0;
 
           recipe.inputs.forEach((inp) => {
             const numQty = parseQuantityExpression(inp.quantity);
@@ -721,14 +752,15 @@
               name: inp.item,
               qty: numQty,
               rawQty: inp.quantity,
-              price,
+              unitPrice: price,
               volume,
               totalCost,
             });
           });
 
           const outName = recipe.output.item;
-          const outputQty = parseQuantityExpression(recipe.output.quantity);
+          const rawOutputQtyStr = recipe.output.quantity;
+          const outputQty = parseQuantityExpression(rawOutputQtyStr);
           const {
             price: outPrice,
             volume: outVolume,
@@ -737,7 +769,7 @@
 
           let effectiveOutPrice = outPrice;
           if (outMode !== "alch" && outPrice > 0) {
-            const taxPerItem = Math.min(Math.floor(outPrice * 0.01), 5000000);
+            const taxPerItem = Math.min(Math.floor(outPrice * 0.02), 5000000);
             effectiveOutPrice = outPrice - taxPerItem;
           }
 
@@ -752,19 +784,23 @@
           const marginPct =
             totalInputCost > 0 ? (totalProfit / totalInputCost) * 100 : 0;
 
-          // XP per hour calculation: 3600 seconds in an hour / (ticks * 0.6 seconds per tick) = actions per hour.
-          // Multiplying directly by xpPerAction (independent of output quantity per action).
-          const actionsPerHour = 3600 / (ticks * 0.6);
-          const xpPerHour = actionsPerHour * xpPerAction;
+          const actionSeconds = ticks * 0.6;
+          const totalSecondsPerInventory = 27 * actionSeconds + bankDelaySec;
+          const inventoriesPerHour = 3600 / totalSecondsPerInventory;
+          const actionsPerHour = inventoriesPerHour * 27;
+
+          const gpPerHour = actionsPerHour * totalProfit;
 
           lastResults.push({
             outputName: outName,
             outputQty,
+            rawOutputQtyStr,
+            outputUnitPrice: effectiveOutPrice,
             totalInputCost,
             totalOutputRevenue,
             totalProfit,
             profitPerUnit,
-            xpPerHour,
+            gpPerHour,
             marginPct,
             minVolume: Math.floor(minVolume),
             inputBreakdown,
@@ -806,20 +842,21 @@
         }
 
         [
-          "outputName",
           "totalInputCost",
           "totalOutputRevenue",
           "profitPerUnit",
           "totalProfit",
-          "xpPerHour",
+          "gpPerHour",
           "minVolume",
           "marginPct",
         ].forEach((col) => {
           const indicator = document.getElementById(`sort-${col}`);
-          if (col === currentSortColumn) {
-            indicator.textContent = currentSortAscending ? "▲" : "▼";
-          } else {
-            indicator.textContent = "";
+          if (indicator) {
+            if (col === currentSortColumn) {
+              indicator.textContent = currentSortAscending ? "▲" : "▼";
+            } else {
+              indicator.textContent = "";
+            }
           }
         });
 
@@ -840,7 +877,7 @@
             : 0;
 
         if (results.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-500">No matching recipes or items found.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-500">No matching recipes or items found.</td></tr>`;
           updateStats(totalRecipesCount, profitableCount, maxProfitUnit);
           return;
         }
@@ -851,6 +888,11 @@
               ? "text-emerald-400 font-semibold"
               : "text-rose-400 font-semibold";
 
+          const gpPerHourClass =
+            res.gpPerHour >= 0
+              ? "text-cyan-400 font-medium"
+              : "text-rose-400 font-medium";
+
           let volClass = "text-emerald-400";
           let volText = res.minVolume.toLocaleString();
           if (res.minVolume < 100) {
@@ -860,21 +902,48 @@
             volClass = "text-amber-400";
           }
 
+          let inputsHtml = res.inputBreakdown
+            .map(
+              (inp) => `
+            <div class="text-xs flex justify-between gap-4 py-0.5 border-b border-slate-700/40 last:border-0">
+              <span class="text-slate-300 font-medium">${inp.rawQty}x ${inp.name}</span>
+              <span class="text-slate-400 font-mono text-right">@ ${Math.round(inp.unitPrice).toLocaleString()} gp = <span class="text-slate-200">${Math.round(inp.totalCost).toLocaleString()} gp</span></span>
+            </div>
+          `,
+            )
+            .join("");
+
           const row = document.createElement("tr");
           row.className =
             "hover:bg-slate-700/30 transition border-b border-slate-700/50";
 
           row.innerHTML = `
-                    <td class="p-3">
-                        <div class="font-medium text-white">${res.outputName}</div>
-                        <div class="text-xs text-slate-400">Qty produced: ${res.outputQty}</div>
+                    <td class="p-2.5 align-top min-w-[240px]">
+                        <div class="bg-slate-900/50 p-1.5 rounded border border-slate-700/60 flex flex-col gap-1">
+                            ${inputsHtml}
+                            <div class="text-xs pt-1 mt-0.5 border-t border-slate-700 flex justify-between font-semibold text-slate-200">
+                                <span>Total Cost:</span>
+                                <span class="font-mono text-amber-400">${Math.round(res.totalInputCost).toLocaleString()} gp</span>
+                            </div>
+                        </div>
                     </td>
-                    <td class="p-3 text-slate-300">${Math.round(res.totalInputCost).toLocaleString()} gp</td>
-                    <td class="p-3 text-slate-300">${Math.round(res.totalOutputRevenue).toLocaleString()} gp</td>
-                    <td class="p-3 ${profitClass}">${Math.round(res.profitPerUnit).toLocaleString()} gp</td>
-                    <td class="p-3 text-cyan-400 font-medium">${Math.round(res.xpPerHour).toLocaleString()} XP/hr</td>
-                    <td class="p-3 ${volClass}">${volText}</td>
-                    <td class="p-3 font-semibold ${profitClass}">${res.marginPct.toFixed(1)}%</td>
+                    <td class="p-2.5 align-top min-w-[240px]">
+                        <div class="bg-slate-900/50 p-1.5 rounded border border-slate-700/60 flex flex-col gap-1">
+                            <div class="text-xs flex justify-between gap-4 py-0.5">
+                              <span class="text-slate-300 font-medium">${res.rawOutputQtyStr}x ${res.outputName}</span>
+                              <span class="text-slate-400 font-mono text-right">@ ${Math.round(res.outputUnitPrice).toLocaleString()} gp</span>
+                            </div>
+                            <div class="text-xs pt-1 mt-0.5 border-t border-slate-700 flex justify-between font-semibold text-slate-200">
+                                <span>Total Revenue:</span>
+                                <span class="font-mono text-emerald-400">${Math.round(res.totalOutputRevenue).toLocaleString()} gp</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="p-2.5 align-top ${profitClass}">${Math.round(res.profitPerUnit).toLocaleString()} gp</td>
+                    <td class="p-2.5 align-top text-slate-300">${Math.round(res.totalProfit).toLocaleString()} gp</td>
+                    <td class="p-2.5 align-top ${gpPerHourClass}">${Math.round(res.gpPerHour).toLocaleString()} gp/hr</td>
+                    <td class="p-2.5 align-top ${volClass}">${volText}</td>
+                    <td class="p-2.5 align-top font-semibold ${profitClass}">${res.marginPct.toFixed(1)}%</td>
                 `;
           tbody.appendChild(row);
         });
