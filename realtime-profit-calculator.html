@@ -67,7 +67,7 @@
               OSRS Profit & Conversion Hub
               <span
                 class="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 border border-slate-600 font-mono"
-                >v2.23</span
+                >v2.24</span
               >
               <span
                 id="api-status-badge"
@@ -76,7 +76,7 @@
               >
             </h1>
             <p class="text-xs text-slate-400">
-              Real-time GE, Named Recipes, JSON Editor, Autocomplete &
+              Real-time GE, Per-Recipe Bank Delays, JSON Editor, Autocomplete &
               Breakdowns
             </p>
           </div>
@@ -111,37 +111,8 @@
     <main
       class="flex-1 w-full max-w-[99%] 2xl:max-w-[98%] mx-auto p-2 sm:p-3 grid grid-cols-1 lg:grid-cols-12 gap-4 overflow-y-auto"
     >
-      <!-- Left Column: Global Settings & Recipe Builder -->
+      <!-- Left Column: Recipe Builder Sidebar -->
       <div class="lg:col-span-4 flex flex-col gap-4">
-        <!-- Global Settings Card -->
-        <div
-          class="bg-slate-800 rounded-xl p-4 border border-slate-700 material-card"
-        >
-          <h2
-            class="text-sm font-semibold uppercase tracking-wider text-emerald-400 mb-2 flex items-center gap-2"
-          >
-            <span class="material-icons-round text-base">timer</span> Global
-            Workflow Settings
-          </h2>
-          <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1"
-              >Bank Restock Time / Inventory (seconds)</label
-            >
-            <input
-              type="number"
-              step="0.1"
-              min="0"
-              id="global-bank-delay"
-              value="5"
-              oninput="runCalculation()"
-              class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 font-mono"
-            />
-            <p class="text-[11px] text-slate-400 mt-1">
-              Time sink added per 27-item inventory restock cycle.
-            </p>
-          </div>
-        </div>
-
         <div
           class="bg-slate-800 rounded-xl p-4 border border-slate-700 material-card flex-1 flex flex-col"
         >
@@ -184,7 +155,7 @@
 
           <div
             id="recipes-container"
-            class="flex flex-col gap-3 overflow-y-auto max-h-[calc(100vh-320px)] pr-1"
+            class="flex flex-col gap-3 overflow-y-auto max-h-[calc(100vh-200px)] pr-1"
           >
             <!-- Dynamic Recipe Cards -->
           </div>
@@ -447,7 +418,7 @@
       const VOLUME_24H_URL = "https://prices.runescape.wiki/api/v1/osrs/24h";
       const STORAGE_KEY = "osrs_profit_recipes_v3";
       const HEADERS = {
-        "User-Agent": "OSRSProfitWebApp/2.21 (contact@example.com)",
+        "User-Agent": "OSRSProfitWebApp/2.23 (contact@example.com)",
       };
 
       let itemMapping = [];
@@ -483,7 +454,7 @@
         }
         recipesData = [
           {
-            name: "Potion Cleaning",
+            name: "Clean Grimy (*)",
             inputs: [
               { item: "grimy (*)", quantity: "1" },
               { item: "nature rune", quantity: "1/27" },
@@ -493,6 +464,7 @@
             outputMode: "high",
             ticks: 1,
             xpPerAction: 0,
+            bankDelay: 0.18,
           },
           {
             name: "Dragonstone Bolt Tips",
@@ -505,6 +477,7 @@
             outputMode: "high",
             ticks: 2,
             xpPerAction: 91.5,
+            bankDelay: 0.18,
           },
         ];
         saveRecipesToStorage();
@@ -733,7 +706,7 @@
                             </select>
                         </div>
                     </div>
-                    <div class="grid grid-cols-2 gap-2 bg-slate-900/40 p-2 rounded-lg border border-slate-800">
+                    <div class="grid grid-cols-3 gap-2 bg-slate-900/40 p-2 rounded-lg border border-slate-800">
                         <div>
                             <label class="block text-[10px] text-slate-400 mb-0.5">Ticks (0.6s)</label>
                             <input type="number" min="1" value="${recipe.ticks !== undefined ? recipe.ticks : 1}" oninput="updateRecipeMeta(${rIdx}, 'ticks', parseInt(this.value) || 1)" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 font-mono">
@@ -741,6 +714,10 @@
                         <div>
                             <label class="block text-[10px] text-slate-400 mb-0.5">XP / Action</label>
                             <input type="number" step="0.1" min="0" value="${recipe.xpPerAction !== undefined ? recipe.xpPerAction : 0}" oninput="updateRecipeMeta(${rIdx}, 'xpPerAction', parseFloat(this.value) || 0)" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-400 mb-0.5">Bank Delay (s)</label>
+                            <input type="number" step="0.01" min="0" value="${recipe.bankDelay !== undefined ? recipe.bankDelay : 0}" oninput="updateRecipeMeta(${rIdx}, 'bankDelay', parseFloat(this.value) || 0)" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 font-mono">
                         </div>
                     </div>
                     <div class="flex flex-col gap-1.5">
@@ -832,13 +809,14 @@
 
       function addNewRecipeCard() {
         recipesData.push({
-          name: "New Custom Recipe",
+          name: "New Recipe (*)",
           inputs: [{ item: "", quantity: "1" }],
           output: { item: "", quantity: "1" },
           inputMode: "high",
           outputMode: "high",
           ticks: 1,
           xpPerAction: 0,
+          bankDelay: 0.18,
         });
         saveRecipesToStorage();
         renderRecipes();
@@ -879,7 +857,6 @@
         recipesData[rIdx][field] = val;
         saveRecipesToStorage();
         if (field === "name") {
-          // If name changes, we can re-run calculation or re-render table headers
           runCalculation();
         }
       }
@@ -935,14 +912,20 @@
               outItemName = outItemName.replace("(*)", match.wildcardVal);
             }
 
+            let recipeName = recipe.name || "";
+            if (recipeName.includes("(*)")) {
+              recipeName = recipeName.replace("(*)", match.wildcardVal);
+            }
+
             expanded.push({
-              name: recipe.name || "",
+              name: recipeName,
               inputs: newInputs,
               output: { item: outItemName, quantity: outputTemplate.quantity },
               inputMode: recipe.inputMode,
               outputMode: recipe.outputMode,
               ticks: recipe.ticks,
               xpPerAction: recipe.xpPerAction,
+              bankDelay: recipe.bankDelay !== undefined ? recipe.bankDelay : 0,
             });
           });
         });
@@ -978,9 +961,6 @@
           .getElementById("result-search")
           .value.toLowerCase();
 
-        const bankDelaySec =
-          parseFloat(document.getElementById("global-bank-delay").value) || 0;
-
         const expandedRecipes = expandRecipes(recipesData);
         lastResults = [];
 
@@ -993,6 +973,8 @@
           const inMode = recipe.inputMode || "high";
           const outMode = recipe.outputMode || "high";
           const ticks = recipe.ticks && recipe.ticks > 0 ? recipe.ticks : 1;
+          const bankDelaySec =
+            recipe.bankDelay !== undefined ? recipe.bankDelay : 0;
 
           recipe.inputs.forEach((inp) => {
             const numQty = parseQuantityExpression(inp.quantity);
