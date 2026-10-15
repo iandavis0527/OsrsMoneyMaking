@@ -67,7 +67,7 @@
               OSRS Profit & Conversion Hub
               <span
                 class="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 border border-slate-600 font-mono"
-                >v2.22</span
+                >v2.23</span
               >
               <span
                 id="api-status-badge"
@@ -1041,11 +1041,8 @@
             totalInputCost > 0 ? (totalProfit / totalInputCost) * 100 : 0;
 
           const actionSeconds = ticks * 0.6;
-          const totalSecondsPerInventory = 27 * actionSeconds + bankDelaySec;
-          const inventoriesPerHour = 3600 / totalSecondsPerInventory;
-          const actionsPerHour = inventoriesPerHour * 27;
-
-          const gpPerHour = actionsPerHour * totalProfit;
+          const totalSecondsPerInventory = actionSeconds + bankDelaySec;
+          const gpPerHour = (totalProfit / totalSecondsPerInventory) * 3600;
 
           lastResults.push({
             recipeName: recipe.name || "Untitled Recipe",
